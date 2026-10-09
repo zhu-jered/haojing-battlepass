@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.LocalTime;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -193,6 +194,14 @@ public final class TaskEvents {
 
         current.advance(player.getUuid(), player.getName().getString(), action, context, discriminator,
                 currentTick(player));
+
+        // 任务刚完成时在物品栏上方弹一条提示，不用点进界面才知道。
+        List<String> completed = current.drainJustCompleted();
+        if (!completed.isEmpty()) {
+            net.minecraft.text.MutableText msg = net.minecraft.text.Text.literal("§a§l任务完成：§r§e")
+                    .append(String.join("§r§7、§r§e", completed));
+            player.sendMessage(msg, true); // true = action bar（物品栏上方）
+        }
     }
 
     /** 每 20 tick 一次的位置类判定（§5.6：群系切换用每 20 tick 比对实现）。 */
@@ -232,6 +241,13 @@ public final class TaskEvents {
                 // 只有"上一轮还不满足、这一轮满足"才算一次抵达/进入。
                 if (!before.contains(definition.id)) {
                     current.advanceTask(uuid, player.getName().getString(), definition.id, context, currentTick(player));
+
+                    List<String> completed = current.drainJustCompleted();
+                    if (!completed.isEmpty()) {
+                        net.minecraft.text.MutableText msg = net.minecraft.text.Text.literal("§a§l任务完成：§r§e")
+                                .append(String.join("§r§7、§r§e", completed));
+                        player.sendMessage(msg, true);
+                    }
                 }
             }
 

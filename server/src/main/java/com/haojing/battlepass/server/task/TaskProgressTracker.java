@@ -48,6 +48,9 @@ public final class TaskProgressTracker {
     /** 同 tick 去重表：键为 玩家|动作|判别值，值为最近一次计数所在的 tick。 */
     private final Map<String, Integer> recentActions = new ConcurrentHashMap<>();
 
+    /** 刚完成的任务名（advance 返回时清空，供调用方读）。 */
+    private final ThreadLocal<List<String>> justCompleted = ThreadLocal.withInitial(ArrayList::new);
+
     public TaskProgressTracker(PlayerDataManager dataManager, TaskPoolManager poolManager,
                                ConfigManager configManager) {
         this.dataManager = dataManager;
@@ -113,6 +116,14 @@ public final class TaskProgressTracker {
         }
 
         return advanced;
+    }
+
+    /** 取出并清空"刚完成的任务名"列表（调用方在 advance 后读一次）。 */
+    public List<String> drainJustCompleted() {
+        List<String> list = justCompleted.get();
+        List<String> copy = List.copyOf(list);
+        list.clear();
+        return copy;
     }
 
     /** 任务分配发生变化（每日/每周刷新、重 roll）后必须调用，否则会对着旧任务累加。 */
@@ -193,6 +204,12 @@ public final class TaskProgressTracker {
                     dataManager.markSeasonDirty(playerUuid);
                 }
 
+                // 位置类任务完成也通知调用方。
+                List<String> completed = justCompleted.get();
+                if (!completed.isEmpty()) {
+                    // 不直接发消息，留给调用方读。
+                }
+
                 return changed;
             }
         }
@@ -257,6 +274,9 @@ public final class TaskProgressTracker {
 
         if (next >= target) {
             progress.setStatus(TaskStatus.COMPLETED);
+            if (statusBefore != TaskStatus.COMPLETED) {
+                justCompleted.get().add(assigned.definition().name);
+            }
         } else if (statusBefore == TaskStatus.NOT_ACTIVE) {
             progress.setStatus(TaskStatus.IN_PROGRESS);
         }
