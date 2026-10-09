@@ -30,9 +30,13 @@ public final class ChatTitleDecorator {
     private final PlayerDataManager dataManager;
     private final TitleManager titleManager;
 
+    /** 静态引用，供 Mixin 调用（服务端只实例化一次）。 */
+    private static volatile ChatTitleDecorator INSTANCE;
+
     public ChatTitleDecorator(PlayerDataManager dataManager, TitleManager titleManager) {
         this.dataManager = dataManager;
         this.titleManager = titleManager;
+        INSTANCE = this;
     }
 
     /** 注册聊天装饰器。应在服务端初始化时调用一次。 */
@@ -42,42 +46,42 @@ public final class ChatTitleDecorator {
     }
 
     /**
-     * 给聊天消息加上称号前缀。
-     *
-     * @param sender  发言者
-     * @param message 原消息
-     * @return 处理后的消息
+     * 聊天装饰器：不再在消息体前拼称号——称号已经拼到玩家显示名上了（见 Mixin）。
+     * 这个事件保留为空操作，以后若需要在消息体上加装饰（比如关键词高亮）再扩展。
      */
     public Text decorate(ServerPlayerEntity sender, Text message) {
-        if (sender == null || message == null) {
-            return message;
+        return message;
+    }
+
+    /**
+     * 供 {@link com.haojing.battlepass.server.mixin.PlayerEntityDisplayNameMixin} 调用：
+     * 给玩家显示名前拼上称号。如果玩家没戴称号或关了显示，原样返回。
+     */
+    public static Text decorateDisplayName(ServerPlayerEntity player, Text originalName) {
+        ChatTitleDecorator self = INSTANCE;
+        if (self == null || player == null || originalName == null) {
+            return originalName;
         }
 
         try {
-            GlobalData global = dataManager.global(sender.getUuid());
-
-            // 玩家自己关闭了聊天称号显示：本条消息不加前缀。
+            GlobalData global = self.dataManager.global(player.getUuid());
             if (global != null && !global.chatTitleVisible) {
-                return message;
+                return originalName;
             }
 
             String titleId = global == null ? "" : global.equippedTitle;
-
             if (titleId == null || titleId.isBlank()) {
-                return message;
+                return originalName;
             }
-
-            // 只给"确实解锁过"的称号加前缀。
             if (global.unlockedTitles == null || !global.unlockedTitles.contains(titleId)) {
-                return message;
+                return originalName;
             }
 
-            TitleDefinition def = titleManager == null ? null : titleManager.byId(titleId);
+            TitleDefinition def = self.titleManager == null ? null : self.titleManager.byId(titleId);
             String wrapPrefix = def == null || def.wrapPrefix == null ? "【" : def.wrapPrefix;
             String wrapSuffix = def == null || def.wrapSuffix == null ? "】" : def.wrapSuffix;
             String colorCode = def == null || def.color == null || def.color.isBlank() ? "§f" : def.color;
 
-            // 称号显示名：优先 titles.json 里的 name，否则走 lang 译文。
             MutableText titleText;
             String configuredName = def == null ? "" : def.normalizedName();
             if (configuredName.isEmpty()) {
@@ -86,26 +90,18 @@ public final class ChatTitleDecorator {
                 titleText = Text.literal(configuredName);
             }
 
-            // 悬浮 Tooltip：与战令 GUI 一致（名称 / 获取途径 / 描述 / 装饰标注）。
-            MutableText tooltip = tooltipText(def, titleId);
-            Style titleStyle = Style.EMPTY
-                    .withHoverEvent(new HoverEvent.ShowText(tooltip));
+            MutableText tooltip = self.tooltipText(def, titleId);
+            Style titleStyle = Style.EMPTY.withHoverEvent(new HoverEvent.ShowText(tooltip));
 
-            // 把颜色代码应用到整段（包裹符 + 称号）。
             MutableText prefix = Text.literal(wrapPrefix)
                     .append(titleText)
                     .append(wrapSuffix)
-                    .append(" ")
                     .setStyle(titleStyle);
+            prefix = self.applyLegacyColor(prefix, colorCode);
 
-            // 手动按 § 上色（避免依赖 Formatting 枚举，管理员写 §e 就用 §e）。
-            prefix = applyLegacyColor(prefix, colorCode);
-
-            return prefix.append(message);
+            return Text.empty().append(prefix).append(" ").append(originalName);
         } catch (RuntimeException e) {
-            LOGGER.warn("{} 为玩家 {} 添加称号前缀失败，本条消息按原样发送：{}",
-                    ModConstants.LOG_PREFIX, sender.getName().getString(), e.toString());
-            return message;
+            return originalName;
         }
     }
 
