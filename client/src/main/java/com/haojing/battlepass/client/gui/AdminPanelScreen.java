@@ -98,6 +98,13 @@ public class AdminPanelScreen extends Screen {
     private TextFieldWidget targetField;
     private TextFieldWidget valueField;
 
+    /** Tab 补全：当前候选列表。 */
+    private final List<String> tabMatches = new ArrayList<>();
+    /** Tab 补全：当前选中的候选下标。 */
+    private int tabIndex;
+    /** Tab 补全：上一次输入框内容（用于检测用户是否改了文字）。 */
+    private String tabLastContent = "";
+
     /** 配置文件编辑器：当前正在编辑的文件名；null 表示未选。 */
     private String editingFile;
     /** 配置文件内容缓冲（从服务端拉取或剪贴板粘贴来的）。 */
@@ -505,6 +512,38 @@ public class AdminPanelScreen extends Screen {
         }
 
         super.render(context, mouseX, mouseY, delta);
+    }
+
+    public boolean keyPressed(net.minecraft.client.input.KeyInput input) {
+        // Tab 在玩家输入框上：像原版聊天框一样补全在线玩家名。
+        if (input.key() == 258 && targetField != null && targetField.isFocused()) { // 258 = GLFW_KEY_TAB
+            String current = targetField.getText();
+            // 用户改过文字就重新计算候选；否则在候选里循环。
+            if (!current.equals(tabLastContent)) {
+                tabMatches.clear();
+                if (this.client != null && this.client.player != null
+                        && this.client.player.networkHandler != null) {
+                    String prefix = current.toLowerCase();
+                    for (var entry : this.client.player.networkHandler.getPlayerList()) {
+                        String name = entry.getProfile().name();
+                        if (name.toLowerCase().startsWith(prefix)) {
+                            tabMatches.add(name);
+                        }
+                    }
+                }
+                tabIndex = 0;
+            }
+            tabLastContent = current;
+
+            if (!tabMatches.isEmpty()) {
+                String picked = tabMatches.get(tabIndex % tabMatches.size());
+                targetField.setText(picked);
+                tabIndex++;
+                tabLastContent = picked;
+                return true;
+            }
+        }
+        return super.keyPressed(input);
     }
 
     @Override
