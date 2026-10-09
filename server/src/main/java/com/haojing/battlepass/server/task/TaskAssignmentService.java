@@ -218,6 +218,27 @@ public final class TaskAssignmentService implements AutoCloseable {
         SeasonData season = dataManager.season(playerUuid);
         String businessDate = TimeUtil.businessDateKey(TimeUtil.now(), config.dailyRefresh());
 
+        // 旧版存档兼容：旧版 dailyTasks 的键是任务 ID（exp_001 等），
+        // 新版键是组名（explore/build/general）。如果非空但没有一个键是组名，说明是旧格式，直接清空重抽。
+        boolean dailyLegacyFormat = season.dailyTasks != null && !season.dailyTasks.isEmpty();
+        if (dailyLegacyFormat) {
+            boolean hasGroupKey = false;
+            for (String key : season.dailyTasks.keySet()) {
+                if (TaskPool.DAILY_GROUPS.contains(key)) {
+                    hasGroupKey = true;
+                    break;
+                }
+            }
+            if (!hasGroupKey) {
+                LOGGER.info("{} 玩家 {} 的每日任务存档为旧格式（键为任务 ID），自动清空并重抽",
+                        ModConstants.LOG_PREFIX, playerUuid);
+                season.dailyTasks.clear();
+                season.chosenDailyGroup = "";
+                // 旧格式的每日日期戳可能不匹配当前业务日，强制刷新。
+                season.lastDailyRefreshDate = "";
+            }
+        }
+
         boolean dailyMissing = season.dailyTasks == null
                 || season.dailyTasks.isEmpty()
                 || !businessDate.equals(season.lastDailyRefreshDate);

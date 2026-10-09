@@ -216,6 +216,11 @@ public final class ModNetworking {
             case CHOOSE_DAILY_GROUP: {
                 boolean ok = chooseDailyGroup(player.getUuid(), arg);
                 reply(player, ok, ok ? "haojing_battlepass.action.daily_group.ok" : "haojing_battlepass.action.daily_group.fail");
+                if (ok) {
+                    // 立即推一次任务快照，让客户端马上看到选中组的任务，不用等 2 秒兜底刷新。
+                    syncService.markDirty(player.getUuid(), SyncChannels.TASKS);
+                    syncService.push(player, SyncChannels.TASKS);
+                }
                 break;
             }
             case BUY:
