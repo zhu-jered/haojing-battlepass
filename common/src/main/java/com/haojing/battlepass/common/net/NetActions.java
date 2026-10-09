@@ -31,8 +31,8 @@ public final class NetActions {
         /** 用星币兑换商品：arg = 商品 ID。 */
         BUY("itemId"),
 
-        /** 佩戴称号：arg = 称号 ID（空串表示卸下）。 */
-        EQUIP_TITLE("titleId"),
+        /** 佩戴称号：arg = 称号 ID（空串表示卸下，因此无强制参数）。 */
+        EQUIP_TITLE(""),
 
         /** 切换"聊天中显示称号"开关（无参）。 */
         TOGGLE_CHAT_TITLE(""),
