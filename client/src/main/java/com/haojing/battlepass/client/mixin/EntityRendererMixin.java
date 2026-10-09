@@ -4,9 +4,8 @@ import com.haojing.battlepass.client.net.ClientNetworking;
 import com.haojing.battlepass.client.net.OnlineTitles;
 import com.haojing.battlepass.common.gui.GuiColors;
 import com.haojing.battlepass.common.net.ModSnapshots;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.entity.EntityRenderer;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -15,34 +14,52 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
+import java.util.UUID;
+
 /**
  * 在玩家头顶名称标签前注入装备称号。
  *
- * <p>使用 {@code @ModifyVariable} 改 {@code renderLabelIfPresent} 的 Text 入参：
- * 隐身玩家、未加载区块玩家的标签由原版逻辑决定是否渲染，本 Mixin 只在原版决定
- * 要画标签时才把称号拼在前面。
+ * <p>1.21.11 把 {@code renderLabelIfPresent} 的签名改成接收 EntityRenderState 而非 Entity，
+ * 因此这里拿不到实体引用。改用"原标签文本 = 玩家名"反查 PlayerListEntry 拿 UUID，
+ * 再去 OnlineTitles 查该玩家当前称号。
  *
- * <p>纯客户端、纯渲染：服务端零额外计算；任何异常都静默回退原标签。
+ * <p>隐身玩家、未加载区块玩家的标签由原版逻辑决定是否渲染，本 Mixin 只在原版决定
+ * 要画标签时才把称号拼在前面。任何异常静默回退原标签。
  */
 @Mixin(EntityRenderer.class)
 public abstract class EntityRendererMixin {
 
     @ModifyVariable(method = "renderLabelIfPresent", at = @At("HEAD"), argsOnly = true)
-    private Text haojing$prependTitle(Text original, Entity entity) {
+    private Text haojing$prependTitle(Text original) {
         try {
-            if (!(entity instanceof PlayerEntity)) {
+            if (original == null) {
                 return original;
             }
 
-            // 本机玩家关闭了"头顶称号显示"。
             var snap = ClientNetworking.state().player();
             if (snap == null || !snap.nametagTitleVisible) {
                 return original;
             }
 
-            PlayerEntity player = (PlayerEntity) entity;
-            String titleId = OnlineTitles.titleOf(player.getUuid());
+            String name = original.getString();
+            if (name == null || name.isBlank()) {
+                return original;
+            }
 
+            MinecraftClient client = MinecraftClient.getInstance();
+            var networkHandler = client.getNetworkHandler();
+            if (networkHandler == null) {
+                return original;
+            }
+
+            // 用玩家名反查 UUID；非玩家实体（物品展示框等）查不到，直接返回原标签。
+            var listEntry = networkHandler.getPlayerListEntry(name);
+            if (listEntry == null) {
+                return original;
+            }
+
+            UUID uuid = listEntry.getProfile().id();
+            String titleId = OnlineTitles.titleOf(uuid);
             if (titleId == null || titleId.isEmpty()) {
                 return original;
             }
@@ -63,13 +80,13 @@ public abstract class EntityRendererMixin {
                 return original;
             }
 
-            String name = def.name == null || def.name.isEmpty()
+            String displayName = def.name == null || def.name.isEmpty()
                     ? Text.translatable("haojing_battlepass.title." + titleId).getString()
                     : def.name;
             String wrapPrefix = def.wrapPrefix == null || def.wrapPrefix.isEmpty() ? "【" : def.wrapPrefix;
             String wrapSuffix = def.wrapSuffix == null || def.wrapSuffix.isEmpty() ? "】" : def.wrapSuffix;
 
-            MutableText title = Text.literal(wrapPrefix + name + wrapSuffix + " ");
+            MutableText title = Text.literal(wrapPrefix + displayName + wrapSuffix + " ");
             Integer argb = GuiColors.parseSectionColor(def.color);
 
             if (argb != null) {
