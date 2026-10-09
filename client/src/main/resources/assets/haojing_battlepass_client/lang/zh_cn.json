@@ -164,6 +164,7 @@
   "haojing_battlepass.admin.action.reset_season": "重置赛季",
   "haojing_battlepass.admin.action.start_event": "开事件",
   "haojing_battlepass.admin.action.set_scalars": "应用取值（字段=值）",
+  "haojing_battlepass.admin.action.open_config_dir": "打开配置目录",
 
   "haojing_battlepass.admin.line.season": "赛季：%s（%s）",
   "haojing_battlepass.admin.line.season_enabled": "赛季开关：%s",

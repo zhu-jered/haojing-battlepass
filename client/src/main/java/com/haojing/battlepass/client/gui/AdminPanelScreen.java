@@ -185,14 +185,44 @@ public class AdminPanelScreen extends Screen {
         addDrawableChild(next);
 
         int applyWidth = Math.max(80, smallWidth * 2);
+        int applyX = layout.panelX() + layout.panelWidth() - smallWidth - applyWidth - 6;
         addDrawableChild(ButtonWidget.builder(Text.translatable("haojing_battlepass.admin.action.set_scalars"),
                 widget -> applyScalarEdits())
-                .dimensions(layout.panelX() + layout.panelWidth() - smallWidth - applyWidth - 6, footerY,
-                        applyWidth, buttonHeight).build());
+                .dimensions(applyX, footerY, applyWidth, buttonHeight).build());
+
+        // 新增：打开配置文件夹（本地服务器/单机时直接在资源管理器里打开 JSON 所在目录）。
+        // 放在"下一页"和"应用取值"之间的空隙里。
+        int openDirWidth = Math.max(50, layout.panelWidth() / 7);
+        int nextRight = layout.panelX() + 4 + smallWidth + 2 + smallWidth;
+        int openDirX = nextRight + 4;
+        if (openDirX + openDirWidth < applyX - 4) {
+            addDrawableChild(ButtonWidget.builder(Text.translatable("haojing_battlepass.admin.action.open_config_dir"),
+                    widget -> openConfigDir())
+                    .dimensions(openDirX, footerY, openDirWidth, buttonHeight).build());
+        }
 
         addDrawableChild(ButtonWidget.builder(Text.translatable("gui.done"), widget -> close())
                 .dimensions(layout.panelX() + layout.panelWidth() - smallWidth - 2, footerY,
                         smallWidth, buttonHeight).build());
+    }
+
+    /** 打开配置目录（取第一个 config 文件的父目录）。远程服务器上不存在该路径时静默失败。 */
+    private void openConfigDir() {
+        var admin = ClientNetworking.state().admin();
+        if (admin == null || admin.configFiles == null || admin.configFiles.isEmpty()) {
+            return;
+        }
+
+        try {
+            String first = admin.configFiles.get(0);
+            java.io.File file = new java.io.File(first);
+            java.io.File dir = file.getParentFile();
+            if (dir != null && dir.exists() && dir.isDirectory()) {
+                net.minecraft.util.Util.getOperatingSystem().open(dir);
+            }
+        } catch (RuntimeException ignored) {
+            // 远程服务器路径在本机不存在，静默忽略。
+        }
     }
 
     /** 动作按钮的参数取值：按声明的来源取输入框内容。 */

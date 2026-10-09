@@ -263,7 +263,8 @@ public class BattlePassScreen extends Screen {
 
     /** 任务名称悬浮 Tooltip。 */
     private void renderTaskTooltip(DrawContext context, int mouseX, int mouseY) {
-        if (tab != 1 && tab != 2) {
+        // 每日(1)/每周(2)/称号(4) 三个 tab 才需要 Tooltip。
+        if (tab != 1 && tab != 2 && tab != 4) {
             return;
         }
 
@@ -272,12 +273,15 @@ public class BattlePassScreen extends Screen {
         for (int index = 0; index < visibleRowCount(); index++) {
             Row row = rows.get(firstRow + index);
 
-            if (row.tooltip() == null || row.nameWidth() <= 0) {
+            if (row.tooltip() == null) {
                 continue;
             }
 
+            // nameWidth<=0 时退化为整行都可悬浮（称号列表没有固定 nameWidth）。
+            int nameWidth = row.nameWidth() > 0 ? row.nameWidth()
+                    : (layout.actionButtonX() - layout.panelX() - 6);
             int x1 = layout.panelX() + 4;
-            int x2 = x1 + row.nameWidth();
+            int x2 = x1 + nameWidth;
             int y1 = layout.rowY(index);
             int y2 = y1 + layout.rowHeight();
 
@@ -426,10 +430,13 @@ public class BattlePassScreen extends Screen {
                 player.remainingDailyXp < 0
                         ? Text.translatable("haojing_battlepass.gui.unlimited")
                         : Text.literal(String.valueOf(player.remainingDailyXp)))));
+
+        built.add(divider("资源"));
         built.add(row(Text.translatable("haojing_battlepass.gui.home.star_coin", player.starCoin)));
         built.add(row(Text.translatable("haojing_battlepass.gui.home.cards", player.exemptCards)));
         built.add(row(Text.translatable("haojing_battlepass.gui.home.reroll", player.rerollUsed, player.rerollLimit)));
 
+        built.add(divider("分支"));
         String branchKey = "haojing_battlepass.branch." + player.branch.toLowerCase(java.util.Locale.ROOT);
         Text branchText = "NONE".equals(player.branch)
                 ? Text.translatable("haojing_battlepass.gui.home.branch_none")
@@ -531,6 +538,7 @@ public class BattlePassScreen extends Screen {
     private void buildWeekly(List<Row> built) {
         ModSnapshots.Tasks tasks = ClientNetworking.state().tasks();
 
+        built.add(divider("每周挑战"));
         for (ModSnapshots.TaskLine line : tasks.weekly) {
             built.add(taskRow(line));
         }
@@ -545,6 +553,7 @@ public class BattlePassScreen extends Screen {
         ModSnapshots.GuiStyle style = guiStyle();
 
         built.add(row(Text.translatable("haojing_battlepass.gui.shop.balance", shop.starCoin)));
+        built.add(divider("商品列表"));
 
         for (ModSnapshots.ShopLine item : shop.items) {
             boolean affordable = shop.starCoin >= item.price;
@@ -627,19 +636,24 @@ public class BattlePassScreen extends Screen {
                 MutableText label = titleDisplayText(def);
 
                 Text tooltip = titleTooltip(def, unlocked, equipped);
+                int nameWidth = this.textRenderer == null ? 0 : this.textRenderer.getWidth(label);
 
                 if (equipped) {
-                    built.add(new Row(label, "haojing_battlepass.gui.titles.equipped_short",
-                            () -> {}, false, tooltip, "title:" + def.id, 0, null));
+                    // 已佩戴的称号：按钮变成"卸下"，可直接点击取下。
+                    built.add(new Row(label, "haojing_battlepass.gui.titles.unequip",
+                            () -> {
+                                ClientNetworking.sendAction(NetActions.ClientAction.EQUIP_TITLE, "");
+                                rebuild();
+                            }, true, tooltip, "title:" + def.id, nameWidth, null));
                 } else if (unlocked) {
                     built.add(new Row(label, "haojing_battlepass.gui.titles.equip", () -> {
                         ClientNetworking.sendAction(NetActions.ClientAction.EQUIP_TITLE, def.id);
                         rebuild();
-                    }, true, tooltip, "title:" + def.id, 0, null));
+                    }, true, tooltip, "title:" + def.id, nameWidth, null));
                 } else {
                     // 未解锁：灰色、按钮禁用。
                     built.add(new Row(Text.literal("✦ ").append(label).formatted(Formatting.DARK_GRAY),
-                            null, null, false, tooltip, "title:" + def.id, 0, null));
+                            null, null, false, tooltip, "title:" + def.id, nameWidth, null));
                 }
             }
         } else {
@@ -706,17 +720,20 @@ public class BattlePassScreen extends Screen {
         ModSnapshots.Collection collection = ClientNetworking.state().collection();
 
         built.add(row(Text.translatable("haojing_battlepass.gui.collection.season", collection.seasonId)));
+        built.add(divider("本季彩蛋"));
 
         for (String egg : collection.seasonEggs) {
             built.add(row(Text.translatable("haojing_battlepass.gui.collection.egg", eggText(egg))));
         }
 
+        built.add(divider("历史留档"));
         built.add(row(Text.translatable("haojing_battlepass.gui.collection.all", collection.allEggs.size())));
 
         for (String season : collection.historySeasons) {
             built.add(row(Text.translatable("haojing_battlepass.gui.collection.history", season)));
         }
 
+        built.add(divider("里程碑"));
         for (String milestone : collection.milestones) {
             built.add(row(Text.translatable("haojing_battlepass.gui.collection.milestone", milestone)));
         }
@@ -729,6 +746,11 @@ public class BattlePassScreen extends Screen {
     /** 一行没有按钮/没有特殊交互的普通文字行。 */
     private Row row(Text text) {
         return new Row(text, null, null, false, null, null, 0, null);
+    }
+
+    /** 分隔行：用于把同页内不同小节视觉隔开。 */
+    private Row divider(String label) {
+        return row(Text.literal("§7§m                                §r §f§l" + label + " §7§m                                §r"));
     }
 
     /** 一行带动作按钮的文字行。 */
