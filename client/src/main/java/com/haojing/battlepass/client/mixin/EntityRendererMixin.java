@@ -29,7 +29,7 @@ import java.util.UUID;
 @Mixin(EntityRenderer.class)
 public abstract class EntityRendererMixin {
 
-    @ModifyVariable(method = "renderLabelIfPresent", at = @At("HEAD"), argsOnly = true)
+    @ModifyVariable(method = "renderLabelIfPresent", at = @At("STORE"), ordinal = 0)
     private Text haojing$prependTitle(Text original) {
         try {
             if (original == null) {
