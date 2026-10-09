@@ -3,10 +3,8 @@
   "minVersion": "0.8",
   "package": "com.haojing.battlepass.client.mixin",
   "compatibilityLevel": "JAVA_21",
-  "client": [
-    "EntityRendererMixin"
-  ],
+  "client": [],
   "injectors": {
-    "defaultRequire": 1
+    "defaultRequire": 0
   }
 }
