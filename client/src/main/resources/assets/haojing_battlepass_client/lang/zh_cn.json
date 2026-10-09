@@ -168,6 +168,7 @@
   "haojing_battlepass.admin.action.open_config_dir": "打开配置目录",
   "haojing_battlepass.admin.action.config_save": "保存并热重载",
   "haojing_battlepass.admin.config.editor_hint": "正在编辑 %s：直接粘贴/修改 JSON 文本，点保存",
+  "haojing_battlepass.net.server_outdated": "服务器端战令版本过旧，按钮无响应——请更新服务端 jar",
 
   "haojing_battlepass.admin.line.season": "赛季：%s（%s）",
   "haojing_battlepass.admin.line.season_enabled": "赛季开关：%s",

@@ -149,7 +149,14 @@ public final class ClientNetworking {
      * @param arg    参数
      */
     public static void sendAction(NetActions.ClientAction action, String arg) {
-        if (action == null || !ClientPlayNetworking.canSend(ModPayloads.ClientAction.ID)) {
+        if (action == null) {
+            return;
+        }
+        if (!ClientPlayNetworking.canSend(ModPayloads.ClientAction.ID)) {
+            var player = net.minecraft.client.MinecraftClient.getInstance().player;
+            if (player != null) {
+                player.sendMessage(Text.translatable("haojing_battlepass.net.server_outdated"), true);
+            }
             return;
         }
 
@@ -164,7 +171,15 @@ public final class ClientNetworking {
      * @param value  取值
      */
     public static void sendAdmin(NetActions.AdminAction action, String arg, String value) {
-        if (action == null || !ClientPlayNetworking.canSend(ModPayloads.AdminAction.ID)) {
+        if (action == null) {
+            return;
+        }
+        if (!ClientPlayNetworking.canSend(ModPayloads.AdminAction.ID)) {
+            // 服务器没注册管理通道：多半是服务端 jar 太旧，给玩家一个可见提示而不是静默丢弃。
+            var player = net.minecraft.client.MinecraftClient.getInstance().player;
+            if (player != null) {
+                player.sendMessage(Text.translatable("haojing_battlepass.net.server_outdated"), true);
+            }
             return;
         }
 
