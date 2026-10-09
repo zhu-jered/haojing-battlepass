@@ -48,11 +48,14 @@ public final class ModPayloadRegistration {
 
         register(PayloadTypeRegistry.playC2S(), ModPayloads.ClientAction.ID, ModPayloads.ClientAction.CODEC);
         register(PayloadTypeRegistry.playC2S(), ModPayloads.AdminAction.ID, ModPayloads.AdminAction.CODEC);
+        register(PayloadTypeRegistry.playC2S(), ModPayloads.ConfigFileRequest.ID, ModPayloads.ConfigFileRequest.CODEC);
+        register(PayloadTypeRegistry.playC2S(), ModPayloads.ConfigFileSave.ID, ModPayloads.ConfigFileSave.CODEC);
 
         register(PayloadTypeRegistry.playS2C(), ModPayloads.SyncFragment.ID, ModPayloads.SyncFragment.CODEC);
         register(PayloadTypeRegistry.playS2C(), ModPayloads.OpenPanel.ID, ModPayloads.OpenPanel.CODEC);
         register(PayloadTypeRegistry.playS2C(), ModPayloads.ActionResult.ID, ModPayloads.ActionResult.CODEC);
         register(PayloadTypeRegistry.playS2C(), ModPayloads.TitleBroadcast.ID, ModPayloads.TitleBroadcast.CODEC);
+        register(PayloadTypeRegistry.playS2C(), ModPayloads.ConfigFileContent.ID, ModPayloads.ConfigFileContent.CODEC);
     }
 
     /** @return 是否已经完成注册。 */

@@ -43,7 +43,7 @@ import java.util.List;
 @Environment(EnvType.CLIENT)
 public class AdminPanelScreen extends Screen {
 
-    /** §9 的九类可编辑项。 */
+    /** §9 的九类可编辑项 + 远程配置文件编辑。 */
     private static final String[] SECTION_KEYS = {
             "haojing_battlepass.admin.section.season",
             "haojing_battlepass.admin.section.anti_grind",
@@ -53,7 +53,8 @@ public class AdminPanelScreen extends Screen {
             "haojing_battlepass.admin.section.milestones",
             "haojing_battlepass.admin.section.events",
             "haojing_battlepass.admin.section.codes",
-            "haojing_battlepass.admin.section.titles_eggs"
+            "haojing_battlepass.admin.section.titles_eggs",
+            "haojing_battlepass.admin.section.config_editor"
     };
 
     /** 数据维护区的按钮（文案键 + 动作 + 取哪个输入框当参数）。 */
@@ -97,6 +98,11 @@ public class AdminPanelScreen extends Screen {
     private TextFieldWidget targetField;
     private TextFieldWidget valueField;
 
+    /** 配置文件编辑器：当前正在编辑的文件名；null 表示未选。 */
+    private String editingFile;
+    /** 配置文件内容编辑框（单行 TextFieldWidget，maxLength 很大，靠横向滚动）。 */
+    private TextFieldWidget contentField;
+
     public AdminPanelScreen() {
         super(Text.translatable("haojing_battlepass.admin.title"));
     }
@@ -123,7 +129,13 @@ public class AdminPanelScreen extends Screen {
                     layout.tabWidth(index, SECTION_KEYS.length), layout.tabHeight() - 2).build());
         }
 
+        // 配置文件编辑页（section == 9）：独立布局，跳过下面的普通动作按钮区。
         int buttonHeight = layout.footerButtonHeight();
+        if (section == 9) {
+            buildConfigEditor(buttonHeight);
+            return;
+        }
+
         int perRow = Math.max(2, layout.contentWidth() / 92);
         int actionRows = (ACTION_BUTTONS.length + perRow - 1) / perRow;
         int actionButtonWidth = layout.contentWidth() / perRow - 2;
@@ -204,6 +216,78 @@ public class AdminPanelScreen extends Screen {
         addDrawableChild(ButtonWidget.builder(Text.translatable("gui.done"), widget -> close())
                 .dimensions(layout.panelX() + layout.panelWidth() - smallWidth - 2, footerY,
                         smallWidth, buttonHeight).build());
+    }
+
+    /**
+     * 配置文件编辑器页：列出所有配置文件名按钮，点击从服务端拉取内容到文本框，改完点保存。
+     * 远程服务器也能用——所有文件 I/O 都在服务端做。
+     */
+    private void buildConfigEditor(int buttonHeight) {
+        int footerY = layout.footerButtonY();
+        int smallWidth = Math.max(40, layout.panelWidth() / 6);
+
+        // 底部"完成"按钮。
+        addDrawableChild(ButtonWidget.builder(Text.translatable("gui.done"), widget -> close())
+                .dimensions(layout.panelX() + layout.panelWidth() - smallWidth - 2, footerY,
+                        smallWidth, buttonHeight).build());
+
+        // 内容区：文件按钮网格。
+        var admin = ClientNetworking.state().admin();
+        int x = layout.panelX() + 4;
+        int y = layout.contentTop() + 4;
+        int btnW = Math.max(70, layout.contentWidth() / 4 - 4);
+        int btnH = buttonHeight;
+
+        if (admin != null && admin.configFiles != null) {
+            for (String fullPath : admin.configFiles) {
+                String name = fullPath;
+                int sep = Math.max(fullPath.lastIndexOf('/'), fullPath.lastIndexOf('\\'));
+                if (sep >= 0 && sep < fullPath.length() - 1) {
+                    name = fullPath.substring(sep + 1);
+                }
+                final String fileName = name;
+                ButtonWidget btn = ButtonWidget.builder(Text.literal(fileName), w -> {
+                    editingFile = fileName;
+                    ClientNetworking.requestConfigFile(fileName);
+                    rebuild();
+                }).dimensions(x, y, btnW, btnH).build();
+                if (fileName.equals(editingFile)) {
+                    btn.active = false;
+                }
+                addDrawableChild(btn);
+                x += btnW + 4;
+                if (x + btnW > layout.panelX() + layout.panelWidth() - 4) {
+                    x = layout.panelX() + 4;
+                    y += btnH + 3;
+                }
+            }
+        }
+
+        // 内容编辑框：放在文件按钮网格下方。
+        int fieldY = y + btnH + 8;
+        int fieldH = Math.max(40, footerY - 6 - fieldY);
+        contentField = new TextFieldWidget(this.textRenderer, layout.panelX() + 4, fieldY,
+                layout.contentWidth(), Math.min(fieldH, 60), Text.literal(""));
+        contentField.setMaxLength(262144);
+        contentField.setDrawsBackground(true);
+        if (editingFile != null) {
+            contentField.setPlaceholder(Text.translatable("haojing_battlepass.admin.config.editor_hint", editingFile));
+            // 如果还没拉到内容，发一次请求。
+            if (contentField.getText().isEmpty()) {
+                ClientNetworking.requestConfigFile(editingFile);
+            }
+        }
+        addDrawableChild(contentField);
+
+        // 保存按钮。
+        int saveW = Math.max(80, layout.panelWidth() / 5);
+        addDrawableChild(ButtonWidget.builder(Text.translatable("haojing_battlepass.admin.action.config_save"),
+                w -> {
+                    if (editingFile != null && contentField != null) {
+                        ClientNetworking.saveConfigFile(editingFile, contentField.getText());
+                    }
+                }).dimensions(layout.panelX() + layout.contentWidth() - saveW,
+                fieldY + Math.min(fieldH, 60) + 3, saveW, buttonHeight).build());
     }
 
     /** 打开配置目录（取第一个 config 文件的父目录）。远程服务器上不存在该路径时静默失败。 */
@@ -324,6 +408,14 @@ public class AdminPanelScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        // 配置编辑页：服务端回发的文件内容到了就填进编辑框。
+        if (section == 9 && contentField != null) {
+            String[] pending = ClientNetworking.drainPendingConfigFile();
+            if (pending != null && pending[0] != null && pending[0].equals(editingFile)) {
+                contentField.setText(pending[1] == null ? "" : pending[1]);
+            }
+        }
+
         // 顺序同玩家界面：底色 → 文字 → super.render 画按钮（见 BattlePassScreen 的说明）。
         if (layout != null) {
             context.fill(layout.panelX(), layout.panelY(),

@@ -137,6 +137,7 @@
   "haojing_battlepass.admin.section.events": "事件",
   "haojing_battlepass.admin.section.codes": "口令",
   "haojing_battlepass.admin.section.titles_eggs": "称号/彩蛋",
+  "haojing_battlepass.admin.section.config_editor": "配置文件",
 
   "haojing_battlepass.admin.field.target": "目标玩家",
   "haojing_battlepass.admin.field.target_hint": "玩家名或 UUID",
@@ -165,6 +166,8 @@
   "haojing_battlepass.admin.action.start_event": "开事件",
   "haojing_battlepass.admin.action.set_scalars": "应用取值（字段=值）",
   "haojing_battlepass.admin.action.open_config_dir": "打开配置目录",
+  "haojing_battlepass.admin.action.config_save": "保存并热重载",
+  "haojing_battlepass.admin.config.editor_hint": "正在编辑 %s：直接粘贴/修改 JSON 文本，点保存",
 
   "haojing_battlepass.admin.line.season": "赛季：%s（%s）",
   "haojing_battlepass.admin.line.season_enabled": "赛季开关：%s",

@@ -45,6 +45,10 @@ public final class ClientNetworking {
     /** 已经打过"首次收到"日志的通道（避免每秒刷屏）。 */
     private static final java.util.Set<String> firstReceives = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
+    /** 最近一次服务端回发的配置文件内容（管理面板轮询读取后清空）。 */
+    private static volatile String pendingConfigFile = null;
+    private static volatile String pendingConfigContent = null;
+
     private ClientNetworking() {
     }
 
@@ -112,6 +116,13 @@ public final class ClientNetworking {
                     }
                 }));
 
+        // 配置文件内容回发：暂存到静态字段，管理面板轮询读取。
+        ClientPlayNetworking.registerGlobalReceiver(ModPayloads.ConfigFileContent.ID, (payload, context) ->
+                context.client().execute(() -> {
+                    pendingConfigFile = payload.filename();
+                    pendingConfigContent = payload.content();
+                }));
+
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             STATE.reset();
             OnlineTitles.clear();
@@ -159,6 +170,38 @@ public final class ClientNetworking {
 
         ClientPlayNetworking.send(new ModPayloads.AdminAction(action.name(),
                 arg == null ? "" : arg, value == null ? "" : value));
+    }
+
+    /** 向服务端请求读取某个配置文件内容。 */
+    public static void requestConfigFile(String filename) {
+        if (!ClientPlayNetworking.canSend(ModPayloads.ConfigFileRequest.ID)) {
+            return;
+        }
+        ClientPlayNetworking.send(new ModPayloads.ConfigFileRequest(filename));
+    }
+
+    /** 向服务端保存配置文件内容。 */
+    public static void saveConfigFile(String filename, String content) {
+        if (!ClientPlayNetworking.canSend(ModPayloads.ConfigFileSave.ID)) {
+            return;
+        }
+        ClientPlayNetworking.send(new ModPayloads.ConfigFileSave(filename, content == null ? "" : content));
+    }
+
+    /**
+     * 取出并清空最近一次服务端回发的配置文件内容。
+     *
+     * @return [filename, content]；没有新内容返回 null
+     */
+    public static String[] drainPendingConfigFile() {
+        String name = pendingConfigFile;
+        String content = pendingConfigContent;
+        if (name == null) {
+            return null;
+        }
+        pendingConfigFile = null;
+        pendingConfigContent = null;
+        return new String[]{name, content};
     }
 
     private static void openPanel(String panel) {

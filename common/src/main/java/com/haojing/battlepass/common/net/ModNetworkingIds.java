@@ -37,6 +37,15 @@ public final class ModNetworkingIds {
     /** play 阶段：服务端 → 客户端 在线玩家称号广播（UUID + titleId，空串表示卸下）。 */
     public static final Identifier TITLE_BROADCAST_S2C = id("title_broadcast");
 
+    /** play 阶段：客户端 → 服务端 请求读取配置文件内容（OP 专用）。 */
+    public static final Identifier CONFIG_FILE_REQUEST_C2S = id("config_file_request");
+
+    /** play 阶段：服务端 → 客户端 返回配置文件内容（OP 专用）。 */
+    public static final Identifier CONFIG_FILE_CONTENT_S2C = id("config_file_content");
+
+    /** play 阶段：客户端 → 服务端 保存配置文件内容（OP 专用）。 */
+    public static final Identifier CONFIG_FILE_SAVE_C2S = id("config_file_save");
+
     private ModNetworkingIds() {
     }
 

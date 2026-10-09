@@ -229,4 +229,68 @@ public final class ModPayloads {
             return ID;
         }
     }
+
+    /**
+     * 客户端 → 服务端 请求读取某个配置文件（OP 专用）。
+     *
+     * @param filename 配置文件名（如 shop.json），不含路径分隔符
+     */
+    public record ConfigFileRequest(String filename) implements CustomPayload {
+
+        public static final CustomPayload.Id<ConfigFileRequest> ID =
+                new CustomPayload.Id<>(ModNetworkingIds.CONFIG_FILE_REQUEST_C2S);
+
+        public static final PacketCodec<PacketByteBuf, ConfigFileRequest> CODEC = PacketCodec.tuple(
+                PacketCodecs.string(64), ConfigFileRequest::filename,
+                ConfigFileRequest::new);
+
+        @Override
+        public CustomPayload.Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    /**
+     * 服务端 → 客户端 返回配置文件完整内容（OP 专用）。
+     *
+     * @param filename 配置文件名
+     * @param content  文件完整文本（UTF-8）
+     */
+    public record ConfigFileContent(String filename, String content) implements CustomPayload {
+
+        public static final CustomPayload.Id<ConfigFileContent> ID =
+                new CustomPayload.Id<>(ModNetworkingIds.CONFIG_FILE_CONTENT_S2C);
+
+        public static final PacketCodec<PacketByteBuf, ConfigFileContent> CODEC = PacketCodec.tuple(
+                PacketCodecs.string(64), ConfigFileContent::filename,
+                PacketCodecs.string(262144), ConfigFileContent::content,
+                ConfigFileContent::new);
+
+        @Override
+        public CustomPayload.Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    /**
+     * 客户端 → 服务端 保存配置文件内容（OP 专用）。
+     *
+     * @param filename 配置文件名
+     * @param content  要写入的完整文本
+     */
+    public record ConfigFileSave(String filename, String content) implements CustomPayload {
+
+        public static final CustomPayload.Id<ConfigFileSave> ID =
+                new CustomPayload.Id<>(ModNetworkingIds.CONFIG_FILE_SAVE_C2S);
+
+        public static final PacketCodec<PacketByteBuf, ConfigFileSave> CODEC = PacketCodec.tuple(
+                PacketCodecs.string(64), ConfigFileSave::filename,
+                PacketCodecs.string(262144), ConfigFileSave::content,
+                ConfigFileSave::new);
+
+        @Override
+        public CustomPayload.Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
 }

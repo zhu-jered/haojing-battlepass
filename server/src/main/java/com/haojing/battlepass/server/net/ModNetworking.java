@@ -123,6 +123,12 @@ public final class ModNetworking {
         ServerPlayNetworking.registerGlobalReceiver(ModPayloads.AdminAction.ID,
                 (payload, context) -> onAdminAction(context.server(), context.player(), payload));
 
+        // ---- 配置文件远程编辑（OP 专用）----
+        ServerPlayNetworking.registerGlobalReceiver(ModPayloads.ConfigFileRequest.ID,
+                (payload, context) -> onConfigFileRequest(context.server(), context.player(), payload));
+        ServerPlayNetworking.registerGlobalReceiver(ModPayloads.ConfigFileSave.ID,
+                (payload, context) -> onConfigFileSave(context.server(), context.player(), payload));
+
         LOGGER.info("{} 网络层已注册（{}）", ModConstants.LOG_PREFIX, handshakeService.describe());
     }
 
@@ -386,6 +392,46 @@ public final class ModNetworking {
             } catch (RuntimeException ignore) {
             }
         }
+    }
+
+    /** 处理 OP 请求读取配置文件：校验 OP 后把文件内容回发给该玩家。 */
+    private void onConfigFileRequest(MinecraftServer server, ServerPlayerEntity player,
+                                     ModPayloads.ConfigFileRequest payload) {
+        if (player == null) {
+            return;
+        }
+        if (!CommandManager.GAMEMASTERS_CHECK.allows(player.getPermissions())) {
+            LOGGER.warn("{} 非 OP 玩家 {} 尝试读取配置文件 {}",
+                    ModConstants.LOG_PREFIX, player.getName().getString(), payload.filename());
+            return;
+        }
+        String content = adminActions == null ? null : adminActions.readConfigFile(payload.filename());
+        if (content == null) {
+            reply(player, false, "haojing_battlepass.admin.result.bad_value");
+            return;
+        }
+        try {
+            ServerPlayNetworking.send(player, new ModPayloads.ConfigFileContent(payload.filename(), content));
+        } catch (RuntimeException e) {
+            LOGGER.warn("{} 回发配置文件 {} 失败：{}", ModConstants.LOG_PREFIX, payload.filename(), e.getMessage());
+        }
+    }
+
+    /** 处理 OP 保存配置文件：校验 OP + JSON 语法 + 路径穿越，写盘后热重载。 */
+    private void onConfigFileSave(MinecraftServer server, ServerPlayerEntity player,
+                                  ModPayloads.ConfigFileSave payload) {
+        if (player == null) {
+            return;
+        }
+        if (!CommandManager.GAMEMASTERS_CHECK.allows(player.getPermissions())) {
+            LOGGER.warn("{} 非 OP 玩家 {} 尝试保存配置文件 {}",
+                    ModConstants.LOG_PREFIX, player.getName().getString(), payload.filename());
+            return;
+        }
+        ServerAdminActions.Result result = adminActions == null
+                ? ServerAdminActions.Result.fail("haojing_battlepass.admin.result.error")
+                : adminActions.writeConfigFile(server, payload.filename(), payload.content());
+        reply(player, result.success(), result.messageKey());
     }
 
     private void reply(ServerPlayerEntity player, boolean success, String messageKey) {

@@ -738,6 +738,81 @@ public final class ServerAdminActions {
         return files;
     }
 
+    /**
+     * 列出可被 GUI 编辑的配置文件名（不含路径）。
+     *
+     * @return 文件名列表，例如 ["season.json", "shop.json", ...]
+     */
+    public List<String> listEditableConfigFiles() {
+        List<String> names = new ArrayList<>();
+        for (Path p : configFiles()) {
+            if (p.getFileName() != null) {
+                names.add(p.getFileName().toString());
+            }
+        }
+        return names;
+    }
+
+    /**
+     * 读取配置文件完整内容。仅允许读取 configDir 下的已知配置文件，禁止路径穿越。
+     *
+     * @return 文件内容；文件名非法或读取失败返回 null
+     */
+    public String readConfigFile(String filename) {
+        Path resolved = resolveConfigPath(filename);
+        if (resolved == null) {
+            return null;
+        }
+        try {
+            return Files.readString(resolved, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            LOGGER.warn("{} 读取配置文件失败 {}：{}", ModConstants.LOG_PREFIX, resolved, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 写入配置文件完整内容并热重载。
+     *
+     * @return 执行结果
+     */
+    public Result writeConfigFile(MinecraftServer server, String filename, String content) {
+        Path resolved = resolveConfigPath(filename);
+        if (resolved == null) {
+            return Result.fail("haojing_battlepass.admin.result.bad_value");
+        }
+        if (content == null) {
+            content = "";
+        }
+        try {
+            // 写入前先做一次 JSON 解析校验，避免写坏文件。
+            com.google.gson.JsonParser.parseString(content);
+            Files.writeString(resolved, content, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (com.google.gson.JsonSyntaxException e) {
+            LOGGER.warn("{} 配置文件 {} JSON 语法错误，未写入：{}", ModConstants.LOG_PREFIX, filename, e.getMessage());
+            return Result.fail("haojing_battlepass.admin.result.bad_value");
+        } catch (IOException e) {
+            LOGGER.error("{} 写入配置文件失败 {}：{}", ModConstants.LOG_PREFIX, resolved, e.getMessage());
+            return Result.fail("haojing_battlepass.admin.result.error");
+        }
+        return reloadAll(server);
+    }
+
+    /** 把管理员传来的文件名解析为 configDir 下的合法路径；拒绝 ..、分隔符、未知文件。 */
+    private Path resolveConfigPath(String filename) {
+        if (filename == null || filename.isBlank() || filename.contains("..")
+                || filename.contains("/") || filename.contains("\\")) {
+            return null;
+        }
+        Path configDir = paths.configDir();
+        for (Path known : configFiles()) {
+            if (known.getFileName() != null && known.getFileName().toString().equals(filename)) {
+                return known.normalize().toAbsolutePath();
+            }
+        }
+        return null;
+    }
+
     private Result startEvent(MinecraftServer server, String eventId) {
         if (randomEventManager == null || randomEventService == null) {
             return Result.fail("haojing_battlepass.admin.result.error");
