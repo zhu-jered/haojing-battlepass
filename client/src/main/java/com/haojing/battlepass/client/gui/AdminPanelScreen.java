@@ -100,8 +100,10 @@ public class AdminPanelScreen extends Screen {
 
     /** 配置文件编辑器：当前正在编辑的文件名；null 表示未选。 */
     private String editingFile;
-    /** 配置文件内容编辑框（单行 TextFieldWidget，maxLength 很大，靠横向滚动）。 */
-    private TextFieldWidget contentField;
+    /** 配置文件内容缓冲（从服务端拉取或剪贴板粘贴来的）。 */
+    private String configBuffer = "";
+    /** 配置文件预览滚动偏移（行数）。 */
+    private int configScroll;
 
     public AdminPanelScreen() {
         super(Text.translatable("haojing_battlepass.admin.title"));
@@ -219,19 +221,18 @@ public class AdminPanelScreen extends Screen {
     }
 
     /**
-     * 配置文件编辑器页：列出所有配置文件名按钮，点击从服务端拉取内容到文本框，改完点保存。
-     * 远程服务器也能用——所有文件 I/O 都在服务端做。
+     * 配置文件编辑器页：列出所有配置文件名按钮，点击从服务端拉取内容。
+     * 内容以格式化多行文本显示（只读预览），通过剪贴板在外部编辑器与游戏间传递。
      */
     private void buildConfigEditor(int buttonHeight) {
         int footerY = layout.footerButtonY();
         int smallWidth = Math.max(40, layout.panelWidth() / 6);
 
-        // 底部"完成"按钮。
         addDrawableChild(ButtonWidget.builder(Text.translatable("gui.done"), widget -> close())
                 .dimensions(layout.panelX() + layout.panelWidth() - smallWidth - 2, footerY,
                         smallWidth, buttonHeight).build());
 
-        // 内容区：文件按钮网格。
+        // 文件按钮网格。
         var admin = ClientNetworking.state().admin();
         int x = layout.panelX() + 4;
         int y = layout.contentTop() + 4;
@@ -248,6 +249,8 @@ public class AdminPanelScreen extends Screen {
                 final String fileName = name;
                 ButtonWidget btn = ButtonWidget.builder(Text.literal(fileName), w -> {
                     editingFile = fileName;
+                    configBuffer = "";
+                    configScroll = 0;
                     ClientNetworking.requestConfigFile(fileName);
                     rebuild();
                 }).dimensions(x, y, btnW, btnH).build();
@@ -263,31 +266,36 @@ public class AdminPanelScreen extends Screen {
             }
         }
 
-        // 内容编辑框：放在文件按钮网格下方。
-        int fieldY = y + btnH + 8;
-        int fieldH = Math.max(40, footerY - 6 - fieldY);
-        contentField = new TextFieldWidget(this.textRenderer, layout.panelX() + 4, fieldY,
-                layout.contentWidth(), Math.min(fieldH, 60), Text.literal(""));
-        contentField.setMaxLength(262144);
-        contentField.setDrawsBackground(true);
-        if (editingFile != null) {
-            contentField.setPlaceholder(Text.translatable("haojing_battlepass.admin.config.editor_hint", editingFile));
-            // 如果还没拉到内容，发一次请求。
-            if (contentField.getText().isEmpty()) {
-                ClientNetworking.requestConfigFile(editingFile);
-            }
-        }
-        addDrawableChild(contentField);
+        // 操作按钮行：复制 / 粘贴 / 保存。
+        int actionY = y + btnH + 4;
+        int actionW = Math.max(80, layout.contentWidth() / 4 - 4);
+        int actionX = layout.panelX() + 4;
 
-        // 保存按钮。
-        int saveW = Math.max(80, layout.panelWidth() / 5);
+        addDrawableChild(ButtonWidget.builder(Text.translatable("haojing_battlepass.admin.action.config_copy"),
+                w -> {
+                    if (!configBuffer.isEmpty() && this.client != null && this.client.keyboard != null) {
+                        this.client.keyboard.setClipboard(configBuffer);
+                    }
+                }).dimensions(actionX, actionY, actionW, buttonHeight).build());
+
+        addDrawableChild(ButtonWidget.builder(Text.translatable("haojing_battlepass.admin.action.config_paste"),
+                w -> {
+                    if (this.client != null && this.client.keyboard != null) {
+                        String clip = this.client.keyboard.getClipboard();
+                        if (clip != null && !clip.isEmpty()) {
+                            configBuffer = clip;
+                            configScroll = 0;
+                        }
+                    }
+                    rebuild();
+                }).dimensions(actionX + actionW + 4, actionY, actionW, buttonHeight).build());
+
         addDrawableChild(ButtonWidget.builder(Text.translatable("haojing_battlepass.admin.action.config_save"),
                 w -> {
-                    if (editingFile != null && contentField != null) {
-                        ClientNetworking.saveConfigFile(editingFile, contentField.getText());
+                    if (editingFile != null && !configBuffer.isEmpty()) {
+                        ClientNetworking.saveConfigFile(editingFile, configBuffer);
                     }
-                }).dimensions(layout.panelX() + layout.contentWidth() - saveW,
-                fieldY + Math.min(fieldH, 60) + 3, saveW, buttonHeight).build());
+                }).dimensions(actionX + (actionW + 4) * 2, actionY, actionW, buttonHeight).build());
     }
 
     /** 打开配置目录（取第一个 config 文件的父目录）。远程服务器上不存在该路径时静默失败。 */
@@ -408,11 +416,12 @@ public class AdminPanelScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        // 配置编辑页：服务端回发的文件内容到了就填进编辑框。
-        if (section == 9 && contentField != null) {
+        // 配置编辑页：服务端回发的文件内容到了就格式化到缓冲里。
+        if (section == 9) {
             String[] pending = ClientNetworking.drainPendingConfigFile();
             if (pending != null && pending[0] != null && pending[0].equals(editingFile)) {
-                contentField.setText(pending[1] == null ? "" : pending[1]);
+                configBuffer = prettyJson(pending[1]);
+                configScroll = 0;
             }
         }
 
@@ -428,29 +437,94 @@ public class AdminPanelScreen extends Screen {
             int firstLine = page * linesPerPage;
             int y = layout.contentTop() + 1;
 
-            // 第一行固定是"自诊断状态"：数据没到、解析失败、被服务端拒绝，都能一眼看出来。
-            context.drawTextWithShadow(this.textRenderer, statusLine(), layout.panelX() + 5, y, GuiColors.STATUS);
-            y += lineHeight;
+            if (section == 9) {
+                // 配置编辑页：显示文件名 + 提示 + 多行 JSON 预览（带滚动）。
+                if (editingFile == null) {
+                    context.drawTextWithShadow(this.textRenderer,
+                            Text.translatable("haojing_battlepass.admin.config.pick_hint"),
+                            layout.panelX() + 5, y + 20, GuiColors.TEXT_DIM);
+                } else {
+                    context.drawTextWithShadow(this.textRenderer,
+                            Text.translatable("haojing_battlepass.admin.config.editing", editingFile),
+                            layout.panelX() + 5, y, 0xFFFFAA00);
+                    y += lineHeight + 2;
+                    context.drawTextWithShadow(this.textRenderer,
+                            Text.translatable("haojing_battlepass.admin.config.workflow"),
+                            layout.panelX() + 5, y, GuiColors.TEXT_DIM);
+                    y += lineHeight + 2;
 
-            for (int index = 0; index < Math.max(0, linesPerPage - 1); index++) {
-                int lineIndex = firstLine + index;
+                    // 画背景框。
+                    int boxY = y;
+                    int boxH = Math.max(40, layout.footerY() - 4 - boxY);
+                    context.fill(layout.panelX() + 3, boxY,
+                            layout.panelX() + layout.panelWidth() - 3, boxY + boxH, 0x80000000);
 
-                if (lineIndex >= lines.size()) {
-                    break;
+                    // 多行文本，按 configScroll 滚动。
+                    String[] previewLines = configBuffer.split("\n", -1);
+                    int maxVisible = boxH / lineHeight;
+                    int startLine = Math.max(0, Math.min(configScroll, previewLines.length - maxVisible));
+                    for (int i = 0; i < maxVisible; i++) {
+                        int idx = startLine + i;
+                        if (idx >= previewLines.length) break;
+                        String line = previewLines[idx];
+                        // 截断过长的行。
+                        String rendered = this.textRenderer.trimToWidth(line, layout.contentWidth() - 10);
+                        context.drawTextWithShadow(this.textRenderer, rendered,
+                                layout.panelX() + 6, boxY + 2 + i * lineHeight, 0xFFCCCCCC);
+                    }
+
+                    // 滚动位置提示。
+                    if (previewLines.length > maxVisible) {
+                        context.drawTextWithShadow(this.textRenderer,
+                                Text.literal((startLine + 1) + "/" + previewLines.length),
+                                layout.panelX() + layout.panelWidth() - 50, boxY + 2, GuiColors.TEXT_DIM);
+                    }
+                }
+            } else {
+                // 第一行固定是"自诊断状态"：数据没到、解析失败、被服务端拒绝，都能一眼看出来。
+                context.drawTextWithShadow(this.textRenderer, statusLine(), layout.panelX() + 5, y, GuiColors.STATUS);
+                y += lineHeight;
+
+                for (int index = 0; index < Math.max(0, linesPerPage - 1); index++) {
+                    int lineIndex = firstLine + index;
+
+                    if (lineIndex >= lines.size()) {
+                        break;
+                    }
+
+                    context.drawTextWithShadow(this.textRenderer, lines.get(lineIndex), layout.panelX() + 5, y,
+                            GuiColors.TEXT);
+                    y += lineHeight;
                 }
 
-                context.drawTextWithShadow(this.textRenderer, lines.get(lineIndex), layout.panelX() + 5, y,
-                        GuiColors.TEXT);
-                y += lineHeight;
+                context.drawTextWithShadow(this.textRenderer,
+                        Text.translatable("haojing_battlepass.gui.page", page + 1,
+                                Math.max(1, (lines.size() + linesPerPage - 1) / linesPerPage)),
+                        layout.panelX() + layout.panelWidth() / 2 - 20, layout.footerY() + 4, GuiColors.TEXT_DIM);
             }
-
-            context.drawTextWithShadow(this.textRenderer,
-                    Text.translatable("haojing_battlepass.gui.page", page + 1,
-                            Math.max(1, (lines.size() + linesPerPage - 1) / linesPerPage)),
-                    layout.panelX() + layout.panelWidth() / 2 - 20, layout.footerY() + 4, GuiColors.TEXT_DIM);
         }
 
         super.render(context, mouseX, mouseY, delta);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (section == 9 && !configBuffer.isEmpty()) {
+            configScroll = Math.max(0, configScroll - (int) verticalAmount * 3);
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+    }
+
+    /** 把 JSON 文本格式化（带缩进）；解析失败就原样返回。 */
+    private static String prettyJson(String raw) {
+        if (raw == null || raw.isBlank()) return "";
+        try {
+            com.google.gson.JsonElement el = com.google.gson.JsonParser.parseString(raw);
+            return new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(el);
+        } catch (RuntimeException e) {
+            return raw;
+        }
     }
 
     @Override

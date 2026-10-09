@@ -167,6 +167,11 @@
   "haojing_battlepass.admin.action.set_scalars": "应用取值（字段=值）",
   "haojing_battlepass.admin.action.open_config_dir": "打开配置目录",
   "haojing_battlepass.admin.action.config_save": "保存并热重载",
+  "haojing_battlepass.admin.action.config_copy": "复制到剪贴板",
+  "haojing_battlepass.admin.action.config_paste": "从剪贴板粘贴",
+  "haojing_battlepass.admin.config.pick_hint": "点击上方文件名按钮来加载配置文件",
+  "haojing_battlepass.admin.config.editing": "正在编辑: %s",
+  "haojing_battlepass.admin.config.workflow": "点复制→在外部编辑器改好→点粘贴→点保存",
   "haojing_battlepass.admin.config.editor_hint": "正在编辑 %s：直接粘贴/修改 JSON 文本，点保存",
   "haojing_battlepass.net.server_outdated": "服务器端战令版本过旧，按钮无响应——请更新服务端 jar",
 
