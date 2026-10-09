@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "milestones": [
+    {
+      "id": "ms_break_first",
+      "name": "第一万方块",
+      "metric": "BLOCKS_BROKEN",
+      "scope": "TOTAL",
+      "threshold": 10000,
+      "recipients": "PARTICIPANTS",
+      "enabled": true,
+      "announce": true,
+      "rewards": [
+        { "type": "STAR_COIN", "amount": 40 }
+      ]
+    },
+    {
+      "id": "ms_break_50k",
+      "name": "五万方块",
+      "metric": "BLOCKS_BROKEN",
+      "scope": "TOTAL",
+      "threshold": 50000,
+      "recipients": "ALL",
+      "enabled": true,
+      "announce": true,
+      "rewards": [
+        { "type": "STAR_COIN", "amount": 100 },
+        { "type": "TITLE", "titleId": "haojing_breaker" }
+      ]
+    },
+    {
+      "id": "ms_kill_10k",
+      "name": "万兽之敌",
+      "metric": "MOBS_KILLED",
+      "scope": "TOTAL",
+      "threshold": 10000,
+      "recipients": "ALL",
+      "enabled": true,
+      "announce": true,
+      "rewards": [
+        { "type": "STAR_COIN", "amount": 100 },
+        { "type": "TITLE", "titleId": "haojing_hunter" }
+      ]
+    },
+    {
+      "id": "ms_fish_5k",
+      "name": "江河入账",
+      "metric": "FISH_CAUGHT",
+      "scope": "TOTAL",
+      "threshold": 5000,
+      "recipients": "PARTICIPANTS",
+      "enabled": true,
+      "announce": true,
+      "rewards": [
+        { "type": "STAR_COIN", "amount": 80 },
+        { "type": "BATTLEPASS_XP", "amount": 500 }
+      ]
+    },
+    {
+      "id": "ms_trade_2k",
+      "name": "商路通达",
+      "metric": "TRADES",
+      "scope": "TOTAL",
+      "threshold": 2000,
+      "recipients": "PARTICIPANTS",
+      "enabled": true,
+      "announce": true,
+      "rewards": [
+        { "type": "STAR_COIN", "amount": 80 }
+      ]
+    },
+    {
+      "id": "ms_task_10k",
+      "name": "万次托付",
+      "metric": "TASKS_CLAIMED",
+      "scope": "TOTAL",
+      "threshold": 10000,
+      "recipients": "ALL",
+      "enabled": true,
+      "announce": true,
+      "rewards": [
+        { "type": "STAR_COIN", "amount": 150 },
+        { "type": "TITLE", "titleId": "haojing_diligent" }
+      ]
+    },
+    {
+      "id": "ms_xp_1m",
+      "name": "百万经验",
+      "metric": "BATTLEPASS_XP",
+      "scope": "TOTAL",
+      "threshold": 1000000,
+      "recipients": "ALL",
+      "enabled": true,
+      "announce": true,
+      "rewards": [
+        { "type": "TITLE", "titleId": "haojing_legendary" }
+      ]
+    },
+    {
+      "id": "ms_night_100h",
+      "name": "百人时守夜",
+      "metric": "LONG_NIGHT_SECONDS",
+      "scope": "TOTAL",
+      "threshold": 360000,
+      "recipients": "PARTICIPANTS",
+      "enabled": true,
+      "announce": true,
+      "rewards": [
+        { "type": "STAR_COIN", "amount": 120 },
+        { "type": "TITLE", "titleId": "haojing_nightguard" }
+      ]
+    },
+    {
+      "id": "ms_egg_100",
+      "name": "百枚彩蛋",
+      "metric": "EGGS_UNLOCKED",
+      "scope": "TOTAL",
+      "threshold": 100,
+      "recipients": "ALL",
+      "enabled": true,
+      "announce": true,
+      "rewards": [
+        { "type": "STAR_COIN", "amount": 90 }
+      ]
+    },
+    {
+      "id": "ms_break_percapita_2k",
+      "name": "人人两千方块",
+      "metric": "BLOCKS_BROKEN",
+      "scope": "PER_CAPITA",
+      "threshold": 2000,
+      "recipients": "ALL",
+      "enabled": true,
+      "announce": true,
+      "rewards": [
+        { "type": "STAR_COIN", "amount": 60 }
+      ]
+    }
+  ]
+}

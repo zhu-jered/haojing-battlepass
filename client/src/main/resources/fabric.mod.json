@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "haojing_battlepass_client",
+  "version": "${version}",
+  "name": "镐京方块协会战令（客户端）",
+  "description": "社团内部自用的赛季战令系统客户端。只接收服务端数据包并渲染中文 GUI，不做任何业务判定，不改变生存平衡。",
+  "authors": [
+    "镐京方块协会"
+  ],
+  "license": "All-Rights-Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.haojing.battlepass.client.HaoJingBattlePassClient"
+    ]
+  },
+  "mixins": [
+    "haojing_battlepass.client.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.1",
+    "fabric-api": "*",
+    "minecraft": "~1.21.11",
+    "java": ">=21"
+  }
+}

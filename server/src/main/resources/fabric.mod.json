@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "haojing_battlepass_server",
+  "version": "${version}",
+  "name": "镐京方块协会战令（服务端）",
+  "description": "社团内部自用的赛季战令系统。服务端负责全部业务逻辑：任务判定、奖励计算、数据持久化、长夜模式与权限校验。",
+  "authors": [
+    "镐京方块协会"
+  ],
+  "license": "All-Rights-Reserved",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "com.haojing.battlepass.server.HaoJingBattlePassServer"
+    ]
+  },
+  "mixins": [
+    "haojing_battlepass.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.1",
+    "fabric-api": "*",
+    "minecraft": "~1.21.11",
+    "java": ">=21"
+  }
+}

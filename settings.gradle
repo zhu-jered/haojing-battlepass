@@ -1,0 +1,181 @@
+import groovy.json.JsonSlurper
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+
+// 用途：声明三子工程结构（:common / :server / :client）、插件仓库，并准备本机构建所需的镜像物料。
+//
+// 为什么显式排布 pluginManagement 仓库顺序：本机 hosts 把 Mojang 与 GitHub 全系指向 127.0.0.1，
+// 官方 gradlePluginPortal 虽可达但可能间接引用被墙地址，因此把实测可达的 Fabric 官方 Maven
+// 与阿里云镜像排在前面，保证插件解析不会走到被屏蔽的域名。
+
+pluginManagement {
+    repositories {
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        maven {
+            name = 'AliyunPublic'
+            url = 'https://maven.aliyun.com/repository/public'
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'haojing-battlepass'
+
+// 为什么是三子工程：:common 承载"两端必须完全一致"的协议与模型代码，
+// 它以源码方式并入两个成品工程，从而只交付两个 jar、两份 fabric.mod.json。
+include 'common'
+include 'server'
+include 'client'
+
+// =====================================================================================
+// 镜像准备（仅为本机网络环境服务，与业务逻辑无关）
+//
+// 背景：本机 hosts 把 *.mojang.com / libraries.minecraft.net / github.com 全系指向 127.0.0.1。
+// Loom 有官方钩子可以改掉其中两处：
+//   1. customMinecraftMetadata —— 直接指定版本 JSON 的 URL，跳过被墙的版本清单（在各子工程设置）
+//   2. loom_libraries_base     —— 替换 Loom 注册的 "Mojang" Maven 仓库地址（在根 build.gradle 设置）
+// 但以下两件事 Loom 没有提供配置项，只能在 settings 阶段预先备好物料：
+//   A. 客户端/服务端 jar：URL 硬编码在版本 JSON 里，指向被墙的 piston-data.mojang.com。
+//      好在 Loom 的下载器（Download#requiresDownload）在文件已存在且 sha1 与版本 JSON 一致时
+//      会直接复用，因此预置到 Loom 的缓存目录即可。
+//   B. com.mojang 系列库：实测 Maven Central 完全没有这批构件（authlib / datafixerupper /
+//      brigadier / text2speech / blocklist / patchy / jtracy / logging），必须自建本地仓库。
+//      其余 94 个库 Central 都有，交给已声明的阿里云与 Central 仓库解析即可。
+//
+// 为什么放在 settings 阶段：Gradle 先评估 settings 再配置各工程，而 Loom 在工程配置期就要用这些
+// 物料，只有 settings 阶段来得及。已就绪时本段直接返回，几乎没有开销。
+// =====================================================================================
+
+def mirrorProps = new Properties()
+def mirrorPropsFile = new File(settingsDir, 'gradle.properties')
+if (mirrorPropsFile.isFile()) {
+    mirrorPropsFile.withInputStream { mirrorProps.load(it) }
+}
+
+def bmclapiBase = mirrorProps.getProperty('bmclapi_base')
+def mcVersion = mirrorProps.getProperty('minecraft_version')
+def localMavenDirName = mirrorProps.getProperty('local_maven_dir')
+
+if (bmclapiBase && mcVersion && localMavenDirName) {
+
+    /** 带重试的下载：BMCLAPI 会把请求重定向到志愿者节点，偶发解析失败，必须重试。 */
+    def downloadWithRetry = { String url, File target, boolean expectZip, int attempts ->
+        def partial = new File(target.parentFile, target.name + '.part')
+        Exception last = null
+        for (int i = 1; i <= attempts; i++) {
+            partial.delete()
+            try {
+                def stream = URI.create(url).toURL().openStream()
+                try {
+                    partial.withOutputStream { out -> out << stream }
+                } finally {
+                    stream.close()
+                }
+                if (partial.length() <= 0) {
+                    throw new IOException('返回内容为空')
+                }
+                if (expectZip) {
+                    // 防止把镜像的错误页当成 jar 存下来。
+                    partial.withInputStream { ins ->
+                        byte[] head = new byte[2]
+                        if (ins.read(head) != 2 || head[0] != (byte) 'P' || head[1] != (byte) 'K') {
+                            throw new IOException('返回内容不是 zip/jar')
+                        }
+                    }
+                }
+                Files.move(partial.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                return
+            } catch (Exception e) {
+                last = e
+                logger.lifecycle("[HaoJingBP-Mirror] 第 ${i}/${attempts} 次尝试失败（${url}）: ${e.message}")
+                Thread.sleep(1000L * i)
+            }
+        }
+        throw new GradleException("[HaoJingBP-Mirror] 下载失败：${url}", last)
+    }
+
+    def metaCache = null
+    def versionMeta = {
+        if (metaCache == null) {
+            metaCache = new JsonSlurper().parse(URI.create("${bmclapiBase}/version/${mcVersion}/json".toString()).toURL())
+        }
+        return metaCache
+    }
+
+    // ---------- A. Minecraft 客户端 / 服务端 jar ----------
+    def loomCacheDir = new File(gradle.gradleUserHomeDir, "caches/fabric-loom/${mcVersion}".toString())
+    def jarNames = [client: 'minecraft-client.jar', server: 'minecraft-server.jar']
+    def missingJars = jarNames.findAll { kind, name -> !new File(loomCacheDir, name).with { it.isFile() && it.length() > 0 } }
+
+    if (!missingJars.isEmpty()) {
+        logger.lifecycle("[HaoJingBP-Mirror] Minecraft jar 缓存缺失，从 BMCLAPI 预热: ${missingJars.keySet()}")
+        def meta = versionMeta()
+
+        jarNames.each { kind, name ->
+            def target = new File(loomCacheDir, name)
+            if (target.isFile() && target.length() > 0) {
+                return
+            }
+            def expectedSha1 = meta.downloads[kind].sha1
+            downloadWithRetry("${bmclapiBase}/version/${mcVersion}/${kind}".toString(), target, true, 5)
+
+            def md = java.security.MessageDigest.getInstance('SHA-1')
+            target.withInputStream { ins ->
+                byte[] buf = new byte[8192]
+                int n
+                while ((n = ins.read(buf)) > 0) {
+                    md.update(buf, 0, n)
+                }
+            }
+            def actualSha1 = md.digest().collect { String.format('%02x', it & 0xff) }.join()
+            if (actualSha1 != expectedSha1) {
+                target.delete()
+                throw new GradleException(
+                        "[HaoJingBP-Mirror] ${kind} 的 sha1 校验失败，拒绝使用：期望 ${expectedSha1}，实际 ${actualSha1}。")
+            }
+            logger.lifecycle("[HaoJingBP-Mirror] ${kind} 就绪（sha1 校验通过）")
+        }
+    }
+
+    // ---------- B. 本地 Maven 仓库：补齐 Central 没有的 com.mojang 系列 ----------
+    def localRepo = new File(gradle.gradleUserHomeDir, localMavenDirName)
+    def mojangPaths = (versionMeta().libraries ?: [])
+            .collect { it?.downloads?.artifact?.path }
+            .findAll { it != null && it.startsWith('com/mojang/') }
+            .unique()
+
+    def missingLibs = mojangPaths.findAll { !new File(localRepo, it.toString()).with { it.isFile() && it.length() > 0 } }
+
+    if (!missingLibs.isEmpty()) {
+        logger.lifecycle("[HaoJingBP-Mirror] 本地 Maven 仓库缺少 ${missingLibs.size()} 个 com.mojang 构件，从 BMCLAPI 补齐")
+
+        missingLibs.each { path ->
+            def target = new File(localRepo, path.toString())
+            target.parentFile.mkdirs()
+            downloadWithRetry("${bmclapiBase}/maven/${path}".toString(), target, true, 6)
+
+            // 生成一个最小 POM：Loom 的仓库声明要求 mavenPom，缺 POM 会导致解析失败。
+            // 不写 dependencies 是安全的 —— 原版版本 JSON 已经把全部库平铺列出，不依赖 POM 传递依赖。
+            def segs = path.toString().split('/')
+            def fileName = segs[-1]
+            def libVersion = segs[-2]
+            def artifactId = segs[-3]
+            def groupId = segs[0..-4].join('.')
+            def pom = new File(target.parentFile, "${artifactId}-${libVersion}.pom".toString())
+            pom.setText("""<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>${groupId}</groupId>
+  <artifactId>${artifactId}</artifactId>
+  <version>${libVersion}</version>
+  <packaging>jar</packaging>
+</project>
+""", 'UTF-8')
+            logger.lifecycle("[HaoJingBP-Mirror] 已补齐 ${path}")
+        }
+    }
+}

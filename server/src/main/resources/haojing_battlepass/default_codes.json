@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "codes": [
+    {
+      "id": "code_haojing",
+      "code": "镐京加油",
+      "name": "镐京加油（长期）",
+      "enabled": true,
+      "startDate": "",
+      "endDate": "",
+      "successMessageKey": "haojing_battlepass.code.success",
+      "broadcast": true,
+      "rewards": [
+        { "type": "STAR_COIN", "amount": 20 },
+        { "type": "EXEMPT_CARD", "amount": 1 }
+      ]
+    },
+    {
+      "id": "code_guild_2026",
+      "code": "方块协会",
+      "name": "方块协会（全年）",
+      "enabled": true,
+      "startDate": "01-01",
+      "endDate": "12-31",
+      "broadcast": false,
+      "rewards": [
+        { "type": "BATTLEPASS_XP", "amount": 200 }
+      ]
+    },
+    {
+      "id": "code_long_night",
+      "code": "长夜守护",
+      "name": "长夜守护（冬季）",
+      "enabled": true,
+      "startDate": "11-15",
+      "endDate": "02-15",
+      "broadcast": false,
+      "rewards": [
+        { "type": "STAR_COIN", "amount": 30 },
+        { "type": "TITLE", "titleId": "haojing_nightpal" }
+      ]
+    }
+  ]
+}

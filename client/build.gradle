@@ -1,0 +1,38 @@
+// 用途：客户端成品 jar。需求文档 §2/§3 规定客户端只接收数据包并渲染 GUI，
+// 不做任何业务判定，也不改变生存平衡。
+
+plugins {
+    id 'fabric-loom'
+}
+
+loom {
+    // 与服务端同样的镜像说明，见 server/build.gradle 里的注释。
+    customMinecraftMetadata = "${project.bmclapi_base}/version/${project.minecraft_version}/json"
+}
+
+// 为什么并入 :common 的源码目录：见 :common/build.gradle 顶部说明。
+sourceSets {
+    main {
+        java.srcDir project(':common').file('src/main/java')
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+base {
+    archivesName = "${project.archives_base_name}-client"
+}
+
+def modVersion = project.version
+
+processResources {
+    inputs.property 'version', modVersion
+    filesMatching('fabric.mod.json') {
+        expand 'version': modVersion
+    }
+}

@@ -1,0 +1,18 @@
+# 用途：避免把构建产物与本机工具链提交进版本库。
+.gradle/
+build/
+run/
+.idea/
+*.iml
+*.log
+
+# 测试与运行产生的日志目录：Minecraft 的库把 logback 带进了测试类路径，
+# 而 Gradle 测试的工作目录是子工程目录，于是 logback 会在 server/ 下写 logs/。
+# 这不是源码，必须忽略。
+logs/
+
+# 本机（DSH 沙箱）使用的 Gradle 家目录与工具缓存：
+# 沙箱禁止写工作区以外的路径，因此 ~/.gradle 不可用，只能把 GRADLE_USER_HOME 指到工作区内。
+# 这只是沙箱内的临时手段，工程本身不依赖它 —— 你在沙箱外正常执行 gradlew 时无需设置。
+.gradle-home/
+.tools/

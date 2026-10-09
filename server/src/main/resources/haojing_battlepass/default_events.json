@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "checkIntervalMinutes": 5,
+  "rollChance": 0.08,
+  "minIntervalMinutes": 90,
+  "announce": true,
+  "events": [
+    {
+      "id": "ev_mob_surge",
+      "name": "怪物潮",
+      "type": "MOB_SURGE",
+      "enabled": true,
+      "durationMinutes": 10,
+      "weight": 3,
+      "participation": { "type": "KILL_ENTITY", "target": 2 },
+      "effects": [
+        { "kind": "SPAWN", "value": "minecraft:zombie", "amount": 4 }
+      ],
+      "rewards": [
+        { "type": "BATTLEPASS_XP", "amount": 60 },
+        { "type": "STAR_COIN", "amount": 5 }
+      ]
+    },
+    {
+      "id": "ev_supply_drop",
+      "name": "天降补给",
+      "type": "SUPPLY_DROP",
+      "enabled": true,
+      "durationMinutes": 5,
+      "weight": 2,
+      "participation": { "type": "ONLINE", "target": 1 },
+      "effects": [
+        { "kind": "ITEM", "value": "minecraft:golden_apple", "amount": 3 }
+      ],
+      "rewards": [
+        { "type": "BATTLEPASS_XP", "amount": 30 }
+      ]
+    },
+    {
+      "id": "ev_double_xp",
+      "name": "双倍经验",
+      "type": "DOUBLE_XP",
+      "enabled": true,
+      "durationMinutes": 15,
+      "weight": 2,
+      "participation": { "type": "ONLINE", "target": 1 },
+      "effects": [
+        { "kind": "XP_MULTIPLIER", "multiplier": 2.0 },
+        { "kind": "POTION", "value": "minecraft:haste", "amount": 0, "durationSeconds": 900 }
+      ],
+      "rewards": [
+        { "type": "STAR_COIN", "amount": 10 }
+      ]
+    },
+    {
+      "id": "ev_meteor_shower",
+      "name": "陨石雨",
+      "type": "METEOR_SHOWER",
+      "enabled": true,
+      "durationMinutes": 8,
+      "weight": 1,
+      "participation": { "type": "KILL_ENTITY", "target": 1 },
+      "effects": [
+        { "kind": "SPAWN", "value": "minecraft:creeper", "amount": 2 },
+        { "kind": "SPAWN", "value": "minecraft:skeleton", "amount": 3 }
+      ],
+      "rewards": [
+        { "type": "BATTLEPASS_XP", "amount": 80 },
+        { "type": "ITEM", "itemId": "minecraft:sentry_armor_trim_smithing_template", "amount": 1 }
+      ]
+    },
+    {
+      "id": "ev_caravan",
+      "name": "商队集结",
+      "type": "CARAVAN",
+      "enabled": true,
+      "durationMinutes": 12,
+      "weight": 2,
+      "participation": { "type": "TRADE", "target": 1 },
+      "effects": [
+        { "kind": "POTION", "value": "minecraft:night_vision", "amount": 0, "durationSeconds": 720 },
+        { "kind": "POTION", "value": "minecraft:speed", "amount": 0, "durationSeconds": 720 }
+      ],
+      "rewards": [
+        { "type": "BATTLEPASS_XP", "amount": 50 },
+        { "type": "STAR_COIN", "amount": 8 }
+      ]
+    }
+  ]
+}

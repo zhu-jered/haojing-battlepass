@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "levels": [
+    {
+      "level": 2,
+      "enabled": true,
+      "common": [
+        { "type": "STAR_COIN", "amount": 20 }
+      ]
+    },
+    {
+      "level": 3,
+      "enabled": true,
+      "common": [
+        { "type": "EXEMPT_CARD", "amount": 1 }
+      ]
+    },
+    {
+      "level": 5,
+      "enabled": true,
+      "common": [
+        { "type": "TITLE", "titleId": "haojing_pioneer" },
+        { "type": "ITEM", "itemId": "minecraft:sentry_armor_trim_smithing_template", "amount": 1 }
+      ]
+    },
+    {
+      "level": 8,
+      "enabled": true,
+      "common": [
+        { "type": "EXEMPT_CARD", "amount": 1 }
+      ]
+    },
+    {
+      "level": 10,
+      "enabled": true,
+      "common": [
+        { "type": "TITLE", "titleId": "haojing_vanguard" },
+        { "type": "ITEM", "itemId": "minecraft:wayfinder_armor_trim_smithing_template", "amount": 1 }
+      ]
+    },
+    {
+      "level": 12,
+      "enabled": true,
+      "common": [],
+      "hunt": [
+        { "type": "ITEM", "itemId": "minecraft:creeper_banner_pattern", "amount": 1 }
+      ],
+      "build": [
+        { "type": "ITEM", "itemId": "minecraft:field_masoned_banner_pattern", "amount": 1 }
+      ]
+    },
+    {
+      "level": 15,
+      "enabled": true,
+      "common": [
+        { "type": "TITLE", "titleId": "haojing_veteran" }
+      ],
+      "hunt": [
+        { "type": "ITEM", "itemId": "minecraft:spire_armor_trim_smithing_template", "amount": 1 }
+      ],
+      "build": [
+        { "type": "ITEM", "itemId": "minecraft:shaper_armor_trim_smithing_template", "amount": 1 }
+      ]
+    },
+    {
+      "level": 18,
+      "enabled": true,
+      "common": [
+        { "type": "EXEMPT_CARD", "amount": 1 }
+      ]
+    },
+    {
+      "level": 20,
+      "enabled": true,
+      "common": [
+        { "type": "TITLE", "titleId": "haojing_master" },
+        { "type": "STAR_COIN", "amount": 60 }
+      ],
+      "hunt": [
+        { "type": "ITEM", "itemId": "minecraft:flow_armor_trim_smithing_template", "amount": 1 }
+      ],
+      "build": [
+        { "type": "ITEM", "itemId": "minecraft:raiser_armor_trim_smithing_template", "amount": 1 }
+      ]
+    },
+    {
+      "level": 25,
+      "enabled": true,
+      "common": [
+        { "type": "TITLE", "titleId": "haojing_legend" }
+      ],
+      "hunt": [
+        { "type": "ITEM", "itemId": "minecraft:bolt_armor_trim_smithing_template", "amount": 1 }
+      ],
+      "build": [
+        { "type": "ITEM", "itemId": "minecraft:host_armor_trim_smithing_template", "amount": 1 }
+      ]
+    },
+    {
+      "level": 30,
+      "enabled": true,
+      "common": [
+        { "type": "TITLE", "titleId": "haojing_final" },
+        { "type": "STAR_COIN", "amount": 150 }
+      ],
+      "hunt": [
+        { "type": "ITEM", "itemId": "minecraft:silence_armor_trim_smithing_template", "amount": 1 }
+      ],
+      "build": [
+        { "type": "ITEM", "itemId": "minecraft:ward_armor_trim_smithing_template", "amount": 1 }
+      ]
+    }
+  ]
+}

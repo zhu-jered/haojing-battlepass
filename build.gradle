@@ -1,0 +1,55 @@
+// 用途：根工程只做公共约定与聚合构建；两个成品 jar 分别来自 :server 与 :client。
+// 为什么在根声明 fabric-loom 且 apply false：这样两个子工程可以只写 id 而不重复写版本号，
+// 版本仍然唯一地来自 gradle.properties。
+
+plugins {
+    id 'fabric-loom' version "${loom_version}" apply false
+    id 'base'
+}
+
+allprojects {
+    group = project.maven_group
+    version = project.mod_version
+
+    // 把镜像位置派生成 Loom 认得的两个 extra property。
+    // 为什么必须在 allprojects 里设：Loom 的 LoomRepositoryPlugin 是在子工程 apply 插件时
+    // 读取这些值的，而根工程的 allprojects 块先于子工程脚本执行，所以这里设置一定能被读到。
+    //
+    // loom_libraries_base 指向本机自建仓库而不是 BMCLAPI 直连，有两个原因：
+    //   1. BMCLAPI 的 /maven/ 会把 jar 302 重定向到志愿者节点，这些子域是短时效的，
+    //      Java 侧经常解析失败（实测报 UnknownHostException），不适合作为构建依赖源；
+    //   2. 实测 Maven Central 完全没有 com.mojang 系列构件，这批只能本地补齐。
+    // 其余 90 多个原版库 Central 都有，会由下面声明的公共仓库正常解析。
+    // 注意 Loom 会为这个仓库自动附加 Maven Central 作为 artifact 回退地址。
+    ext.loom_libraries_base = new File(gradle.gradleUserHomeDir, project.local_maven_dir).toURI().toString()
+    // loom_resources_base 是原版 assets 基址，只有 runClient 需要它（阶段 7 实测确认路径）。
+    ext.loom_resources_base = "${project.bmclapi_base}/assets/"
+
+    repositories {
+        // 为什么第一顺位是阿里云：本机无法访问 GitHub 与 Mojang 官方源，
+        // 阿里云公共仓库实测可达，作为 Maven Central 的稳定镜像。
+        maven {
+            name = 'AliyunPublic'
+            url = 'https://maven.aliyun.com/repository/public'
+        }
+        mavenCentral()
+    }
+}
+
+subprojects {
+    // 先取到本地变量再进闭包，避免在 configureEach 里解析到错误的 project 作用域。
+    def targetJava = project.java_version as int
+
+    tasks.withType(JavaCompile).configureEach {
+        // 为什么固定 UTF-8：源码含大量中文注释与中文字符串，不固定编码在 Windows 上会乱码。
+        options.encoding = 'UTF-8'
+        options.release = targetJava
+    }
+}
+
+// 为什么需要这一段：根工程本身不产出 jar，而验收用例要求「执行 ./gradlew build」就能拿到成品。
+// base 插件为根工程提供 build 任务，再让它依赖两个成品子工程的 build。
+// 这里只显式列出 :server 与 :client —— :common 不含任何插件、不产出产物，因此没有 build 任务。
+tasks.named('build') {
+    dependsOn ':server:build', ':client:build'
+}

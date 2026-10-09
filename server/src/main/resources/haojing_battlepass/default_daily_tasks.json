@@ -1,0 +1,607 @@
+{
+  "schemaVersion": 1,
+  "weeklyCount": 3,
+  "groups": {
+    "explore": [
+      {
+        "id": "exp_001",
+        "action": "REACH_POSITION",
+        "name": "深入地下",
+        "desc": "抵达 Y≤-40 的深度",
+        "target": 1,
+        "xp": 40,
+        "starCoin": 0,
+        "filter": {
+          "op": "AND",
+          "conditions": [
+            {
+              "type": "Y_RANGE",
+              "min": -64,
+              "max": -40
+            },
+            {
+              "type": "DIMENSION",
+              "value": "minecraft:overworld"
+            }
+          ]
+        }
+      },
+      {
+        "id": "exp_002",
+        "action": "REACH_POSITION",
+        "name": "登高望远",
+        "desc": "站在 Y≥120 的高处",
+        "target": 1,
+        "xp": 40,
+        "starCoin": 0,
+        "filter": {
+          "op": "AND",
+          "conditions": [
+            {
+              "type": "Y_RANGE",
+              "min": 120,
+              "max": 320
+            },
+            {
+              "type": "DIMENSION",
+              "value": "minecraft:overworld"
+            }
+          ]
+        }
+      },
+      {
+        "id": "exp_003",
+        "action": "ENTER_BIOME",
+        "name": "幽暗深处",
+        "desc": "进入深邃洞穴群系",
+        "target": 1,
+        "xp": 55,
+        "starCoin": 1,
+        "filter": {
+          "type": "BIOME",
+          "value": "minecraft:deep_dark"
+        }
+      },
+      {
+        "id": "exp_004",
+        "action": "ENTER_BIOME",
+        "name": "繁茂洞穴",
+        "desc": "进入繁茂洞穴群系",
+        "target": 1,
+        "xp": 50,
+        "starCoin": 0,
+        "filter": {
+          "type": "BIOME",
+          "value": "minecraft:lush_caves"
+        }
+      },
+      {
+        "id": "exp_005",
+        "action": "ENTER_BIOME",
+        "name": "钟乳石洞",
+        "desc": "进入溶洞群系",
+        "target": 1,
+        "xp": 50,
+        "starCoin": 0,
+        "filter": {
+          "type": "BIOME",
+          "value": "minecraft:dripstone_caves"
+        }
+      },
+      {
+        "id": "exp_006",
+        "action": "ENTER_DIMENSION",
+        "name": "下界之门",
+        "desc": "进入下界",
+        "target": 1,
+        "xp": 60,
+        "starCoin": 1,
+        "filter": {
+          "type": "DIMENSION",
+          "value": "minecraft:the_nether"
+        }
+      },
+      {
+        "id": "exp_007",
+        "action": "ENTER_DIMENSION",
+        "name": "末地远征",
+        "desc": "进入末地",
+        "target": 1,
+        "xp": 80,
+        "starCoin": 1,
+        "filter": {
+          "type": "DIMENSION",
+          "value": "minecraft:the_end"
+        }
+      },
+      {
+        "id": "exp_008",
+        "action": "ENTER_BIOME",
+        "name": "樱花之约",
+        "desc": "进入樱花林群系",
+        "target": 1,
+        "xp": 45,
+        "starCoin": 0,
+        "filter": {
+          "type": "BIOME",
+          "value": "minecraft:cherry_grove"
+        }
+      },
+      {
+        "id": "exp_009",
+        "action": "ENTER_BIOME",
+        "name": "沙漠行商",
+        "desc": "进入沙漠群系",
+        "target": 1,
+        "xp": 30,
+        "starCoin": 0,
+        "filter": {
+          "type": "BIOME",
+          "value": "minecraft:desert"
+        }
+      },
+      {
+        "id": "exp_010",
+        "action": "ENTER_BIOME",
+        "name": "雪原足迹",
+        "desc": "进入雪原群系",
+        "target": 1,
+        "xp": 30,
+        "starCoin": 0,
+        "filter": {
+          "type": "BIOME",
+          "value": "minecraft:snowy_plains"
+        }
+      },
+      {
+        "id": "exp_011",
+        "action": "ENTER_BIOME",
+        "name": "沼泽寻踪",
+        "desc": "进入沼泽群系",
+        "target": 1,
+        "xp": 35,
+        "starCoin": 0,
+        "filter": {
+          "type": "BIOME",
+          "value": "minecraft:swamp"
+        }
+      },
+      {
+        "id": "exp_012",
+        "action": "ENTER_BIOME",
+        "name": "蘑菇岛奇遇",
+        "desc": "进入蘑菇岛群系",
+        "target": 1,
+        "xp": 60,
+        "starCoin": 1,
+        "filter": {
+          "type": "BIOME",
+          "value": "minecraft:mushroom_fields"
+        }
+      }
+    ],
+    "build": [
+      {
+        "id": "bld_001",
+        "action": "BREAK_BLOCK",
+        "name": "石匠入门",
+        "desc": "破坏 64 个石头",
+        "target": 64,
+        "xp": 30,
+        "starCoin": 0,
+        "filter": {
+          "type": "BLOCK_ID",
+          "value": "minecraft:stone"
+        }
+      },
+      {
+        "id": "bld_002",
+        "action": "BREAK_BLOCK",
+        "name": "伐木工",
+        "desc": "破坏 32 个橡木原木",
+        "target": 32,
+        "xp": 30,
+        "starCoin": 0,
+        "filter": {
+          "type": "BLOCK_ID",
+          "value": "minecraft:oak_log"
+        }
+      },
+      {
+        "id": "bld_003",
+        "action": "BREAK_BLOCK",
+        "name": "沙土采集",
+        "desc": "破坏 32 个沙子",
+        "target": 32,
+        "xp": 25,
+        "starCoin": 0,
+        "filter": {
+          "type": "BLOCK_ID",
+          "value": "minecraft:sand"
+        }
+      },
+      {
+        "id": "bld_004",
+        "action": "PLACE_BLOCK",
+        "name": "石砖铺路",
+        "desc": "放置 64 个石头",
+        "target": 64,
+        "xp": 40,
+        "starCoin": 0,
+        "filter": {
+          "type": "BLOCK_ID",
+          "value": "minecraft:stone"
+        }
+      },
+      {
+        "id": "bld_005",
+        "action": "PLACE_BLOCK",
+        "name": "安家落户",
+        "desc": "放置 32 个橡木木板",
+        "target": 32,
+        "xp": 35,
+        "starCoin": 0,
+        "filter": {
+          "type": "BLOCK_ID",
+          "value": "minecraft:oak_planks"
+        }
+      },
+      {
+        "id": "bld_006",
+        "action": "PLACE_BLOCK",
+        "name": "玻璃工坊",
+        "desc": "放置 16 个玻璃",
+        "target": 16,
+        "xp": 40,
+        "starCoin": 0,
+        "filter": {
+          "type": "BLOCK_ID",
+          "value": "minecraft:glass"
+        }
+      },
+      {
+        "id": "bld_007",
+        "action": "PLACE_BLOCK",
+        "name": "火把之光",
+        "desc": "放置 16 个火把",
+        "target": 16,
+        "xp": 25,
+        "starCoin": 0,
+        "filter": {
+          "type": "BLOCK_ID",
+          "value": "minecraft:torch"
+        }
+      },
+      {
+        "id": "bld_008",
+        "action": "BREAK_BLOCK",
+        "name": "铁矿开采",
+        "desc": "破坏 8 个铁矿石",
+        "target": 8,
+        "xp": 45,
+        "starCoin": 0,
+        "filter": {
+          "type": "BLOCK_ID",
+          "value": "minecraft:iron_ore"
+        }
+      },
+      {
+        "id": "bld_009",
+        "action": "BREAK_BLOCK",
+        "name": "深层采掘",
+        "desc": "破坏 64 个深板岩",
+        "target": 64,
+        "xp": 35,
+        "starCoin": 0,
+        "filter": {
+          "type": "BLOCK_ID",
+          "value": "minecraft:deepslate"
+        }
+      },
+      {
+        "id": "bld_010",
+        "action": "PLACE_BLOCK",
+        "name": "石砖工匠",
+        "desc": "放置 32 个石砖",
+        "target": 32,
+        "xp": 45,
+        "starCoin": 0,
+        "filter": {
+          "type": "BLOCK_ID",
+          "value": "minecraft:stone_bricks"
+        }
+      },
+      {
+        "id": "bld_011",
+        "action": "PLACE_BLOCK",
+        "name": "储物准备",
+        "desc": "放置 4 个箱子",
+        "target": 4,
+        "xp": 30,
+        "starCoin": 0,
+        "filter": {
+          "type": "BLOCK_ID",
+          "value": "minecraft:chest"
+        }
+      },
+      {
+        "id": "bld_012",
+        "action": "BREAK_BLOCK",
+        "name": "煤炭采集",
+        "desc": "破坏 16 个煤矿石",
+        "target": 16,
+        "xp": 40,
+        "starCoin": 0,
+        "filter": {
+          "type": "BLOCK_ID",
+          "value": "minecraft:coal_ore"
+        }
+      }
+    ],
+    "general": [
+      {
+        "id": "gen_001",
+        "action": "KILL_ENTITY",
+        "name": "僵尸清理",
+        "desc": "击杀 10 只僵尸",
+        "target": 10,
+        "xp": 35,
+        "starCoin": 0,
+        "filter": {
+          "type": "ENTITY_ID",
+          "value": "minecraft:zombie"
+        }
+      },
+      {
+        "id": "gen_002",
+        "action": "KILL_ENTITY",
+        "name": "骷髅清剿",
+        "desc": "击杀 10 只骷髅",
+        "target": 10,
+        "xp": 35,
+        "starCoin": 0,
+        "filter": {
+          "type": "ENTITY_ID",
+          "value": "minecraft:skeleton"
+        }
+      },
+      {
+        "id": "gen_003",
+        "action": "KILL_ENTITY",
+        "name": "蛛网清理",
+        "desc": "击杀 8 只蜘蛛",
+        "target": 8,
+        "xp": 30,
+        "starCoin": 0,
+        "filter": {
+          "type": "ENTITY_ID",
+          "value": "minecraft:spider"
+        }
+      },
+      {
+        "id": "gen_004",
+        "action": "KILL_ENTITY",
+        "name": "苦力怕驱逐",
+        "desc": "击杀 5 只苦力怕",
+        "target": 5,
+        "xp": 40,
+        "starCoin": 0,
+        "filter": {
+          "type": "ENTITY_ID",
+          "value": "minecraft:creeper"
+        }
+      },
+      {
+        "id": "gen_005",
+        "action": "KILL_ENTITY",
+        "name": "末影人",
+        "desc": "击杀 3 只末影人",
+        "target": 3,
+        "xp": 50,
+        "starCoin": 0,
+        "filter": {
+          "type": "ENTITY_ID",
+          "value": "minecraft:enderman"
+        }
+      },
+      {
+        "id": "gen_006",
+        "action": "KILL_ENTITY",
+        "name": "溺尸清理",
+        "desc": "击杀 8 只溺尸",
+        "target": 8,
+        "xp": 40,
+        "starCoin": 0,
+        "filter": {
+          "type": "ENTITY_ID",
+          "value": "minecraft:drowned"
+        }
+      },
+      {
+        "id": "gen_007",
+        "action": "FISH",
+        "name": "渔获",
+        "desc": "钓鱼成功 10 次",
+        "target": 10,
+        "xp": 35,
+        "starCoin": 0
+      },
+      {
+        "id": "gen_008",
+        "action": "FISH",
+        "name": "河畔垂钓",
+        "desc": "在河流群系钓鱼成功 5 次",
+        "target": 5,
+        "xp": 40,
+        "starCoin": 0,
+        "filter": {
+          "type": "BIOME",
+          "value": "minecraft:river"
+        }
+      },
+      {
+        "id": "gen_009",
+        "action": "TRADE",
+        "name": "交易达人",
+        "desc": "与村民交易 5 次",
+        "target": 5,
+        "xp": 40,
+        "starCoin": 0
+      },
+      {
+        "id": "gen_010",
+        "action": "KILL_ENTITY",
+        "name": "牧场的馈赠",
+        "desc": "击杀 10 只家畜（猪/牛/羊）",
+        "target": 10,
+        "xp": 30,
+        "starCoin": 0,
+        "filter": {
+          "type": "ENTITY_ID",
+          "values": [
+            "minecraft:pig",
+            "minecraft:cow",
+            "minecraft:sheep"
+          ]
+        }
+      },
+      {
+        "id": "gen_011",
+        "action": "KILL_ENTITY",
+        "name": "夜间猎手",
+        "desc": "在 22:00~06:00 之间击杀 5 只骷髅",
+        "target": 5,
+        "xp": 45,
+        "starCoin": 1,
+        "filter": {
+          "op": "AND",
+          "conditions": [
+            {
+              "type": "ENTITY_ID",
+              "value": "minecraft:skeleton"
+            },
+            {
+              "type": "TIME_RANGE",
+              "from": "22:00",
+              "to": "06:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "gen_012",
+        "action": "KILL_ENTITY",
+        "name": "洞穴清剿",
+        "desc": "在 Y≤0 击杀 10 只敌对生物",
+        "target": 10,
+        "xp": 40,
+        "starCoin": 0,
+        "filter": {
+          "op": "AND",
+          "conditions": [
+            {
+              "type": "ENTITY_ID",
+              "values": [
+                "minecraft:zombie",
+                "minecraft:skeleton",
+                "minecraft:spider"
+              ]
+            },
+            {
+              "type": "Y_RANGE",
+              "min": -64,
+              "max": 0
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "weekly": [
+    {
+      "id": "wkl_001",
+      "action": "BREAK_BLOCK",
+      "name": "一周矿工",
+      "desc": "破坏 256 个石头或深板岩",
+      "target": 256,
+      "xp": 200,
+      "starCoin": 0,
+      "filter": {
+        "type": "BLOCK_ID",
+        "values": [
+          "minecraft:stone",
+          "minecraft:deepslate"
+        ]
+      }
+    },
+    {
+      "id": "wkl_002",
+      "action": "PLACE_BLOCK",
+      "name": "建设者",
+      "desc": "放置 256 个建材",
+      "target": 256,
+      "xp": 220,
+      "starCoin": 0,
+      "filter": {
+        "type": "BLOCK_ID",
+        "values": [
+          "minecraft:stone",
+          "minecraft:oak_planks",
+          "minecraft:stone_bricks"
+        ]
+      }
+    },
+    {
+      "id": "wkl_003",
+      "action": "KILL_ENTITY",
+      "name": "清剿行动",
+      "desc": "击杀 60 只敌对生物",
+      "target": 60,
+      "xp": 200,
+      "starCoin": 0,
+      "filter": {
+        "type": "ENTITY_ID",
+        "values": [
+          "minecraft:zombie",
+          "minecraft:skeleton",
+          "minecraft:spider",
+          "minecraft:creeper"
+        ]
+      }
+    },
+    {
+      "id": "wkl_004",
+      "action": "FISH",
+      "name": "深海渔夫",
+      "desc": "钓鱼成功 30 次",
+      "target": 30,
+      "xp": 180,
+      "starCoin": 0
+    },
+    {
+      "id": "wkl_005",
+      "action": "TRADE",
+      "name": "商队常客",
+      "desc": "与村民交易 20 次",
+      "target": 20,
+      "xp": 200,
+      "starCoin": 0
+    },
+    {
+      "id": "wkl_006",
+      "action": "ENTER_DIMENSION",
+      "name": "远行探险",
+      "desc": "分别进入下界与末地",
+      "target": 2,
+      "xp": 250,
+      "starCoin": 1,
+      "filter": {
+        "type": "DIMENSION",
+        "values": [
+          "minecraft:the_nether",
+          "minecraft:the_end"
+        ]
+      }
+    }
+  ]
+}

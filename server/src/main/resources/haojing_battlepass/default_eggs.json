@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "eggs": [
+    {
+      "id": "egg_dawn",
+      "name": "长安拂晓",
+      "desc": "北京时间 08:00±5 分钟，玩家 Y≥90 且天空可达",
+      "category": "GLOBAL",
+      "enabled": true,
+      "xp": 20,
+      "title": "haojing_dawnwalker",
+      "condition": { "type": "TIME_ALTITUDE", "time": "08:00", "toleranceMin": 5, "minY": 90, "requireOutdoor": true }
+    },
+    {
+      "id": "egg_moon_builder",
+      "name": "月下筑者",
+      "desc": "满月之夜累计放置 100 方块，触发瞬间半径 16 格内无敌对生物",
+      "category": "GLOBAL",
+      "enabled": true,
+      "xp": 40,
+      "title": "haojing_moonwright",
+      "condition": { "type": "MOON_FULL_PLACE", "placeTarget": 100, "safeRadius": 16 }
+    },
+    {
+      "id": "egg_fish_letter",
+      "name": "鱼信",
+      "desc": "雷雨天气 + 河流群系 + 钓鱼成功一次",
+      "category": "GLOBAL",
+      "enabled": true,
+      "xp": 30,
+      "title": "haojing_riverkeeper",
+      "condition": { "type": "RAIN_RIVER_FISH", "biome": "minecraft:river", "requireThunder": true }
+    },
+    {
+      "id": "egg_cave_explorer",
+      "name": "大地勘探者",
+      "desc": "本赛季内分别进入深邃洞穴、繁茂洞穴、溶洞三种群系",
+      "category": "SEASON_LIMITED",
+      "enabled": true,
+      "xp": 50,
+      "title": "haojing_deepdelver",
+      "condition": {
+        "type": "BIOME_SET",
+        "biomes": ["minecraft:deep_dark", "minecraft:lush_caves", "minecraft:dripstone_caves"]
+      }
+    },
+    {
+      "id": "egg_guild_together",
+      "name": "社团同游",
+      "desc": "半径 32 格内 ≥3 名协会玩家，同群系连续停留 5 分钟（分离超 10 秒重置）",
+      "category": "GLOBAL",
+      "enabled": true,
+      "xp": 50,
+      "title": "haojing_companion",
+      "condition": { "type": "GROUP_STAY", "radius": 32, "minPlayers": 3, "staySeconds": 300, "breakToleranceSeconds": 10 }
+    },
+    {
+      "id": "egg_cherry_return",
+      "name": "樱落归镐",
+      "desc": "在樱花林群系种下树苗并成功生长",
+      "category": "GLOBAL",
+      "enabled": true,
+      "xp": 30,
+      "title": "haojing_cherrykeeper",
+      "condition": { "type": "SAPLING_GROW", "biome": "minecraft:cherry_grove" }
+    },
+    {
+      "id": "egg_nightwatch",
+      "name": "守夜人",
+      "desc": "连续 3 个长夜窗口，每段在线 ≥10 分钟且在线至 06:00",
+      "category": "LONG_NIGHT",
+      "enabled": true,
+      "xp": 0,
+      "title": "haojing_nightwatch",
+      "condition": { "type": "NIGHT_STREAK", "nights": 3, "minOnlineSeconds": 600 }
+    },
+    {
+      "id": "egg_night_glimmer",
+      "name": "长夜微光",
+      "desc": "长夜内四件防具位为空 + 手持火把 + 户外连续停留 60 秒",
+      "category": "LONG_NIGHT",
+      "enabled": true,
+      "xp": 0,
+      "title": "haojing_glimmer",
+      "condition": { "type": "NIGHT_TORCH_OUTDOOR", "holdSeconds": 60 }
+    },
+    {
+      "id": "egg_dawn_return",
+      "name": "晨归",
+      "desc": "长夜内保持存活至 06:00 且当时处于户外",
+      "category": "LONG_NIGHT",
+      "enabled": true,
+      "xp": 0,
+      "title": "haojing_dawnreturn",
+      "condition": { "type": "NIGHT_SURVIVE_DAWN" }
+    },
+    {
+      "id": "egg_still_listening",
+      "name": "静听",
+      "desc": "长夜内每 tick 位移 < 0.01、无破坏/放置/攻击行为，持续 5 分钟",
+      "category": "LONG_NIGHT",
+      "enabled": true,
+      "xp": 0,
+      "title": "haojing_listener",
+      "condition": { "type": "NIGHT_STILL", "maxMovePerTick": 0.01, "stillSeconds": 300 }
+    }
+  ],
+  "light": {
+    "chatKeywordsEnabled": true,
+    "chatKeywords": [
+      {
+        "keyword": "镐京",
+        "sloganKey": "haojing_battlepass.light.slogan_haojing",
+        "slogan": "镐京方块协会：一起把这片世界建得更像家。",
+        "cooldownSeconds": 120
+      },
+      {
+        "keyword": "方块协会",
+        "sloganKey": "haojing_battlepass.light.slogan_guild",
+        "slogan": "镐京方块协会正在招募，欢迎同好加入。",
+        "cooldownSeconds": 120
+      },
+      {
+        "keyword": "长夜",
+        "sloganKey": "haojing_battlepass.light.slogan_night",
+        "slogan": "长夜漫漫，注意安全；进度照常累计，经验减半。",
+        "cooldownSeconds": 180
+      }
+    ],
+    "birthdayEnabled": true,
+    "birthdayMessageKey": "haojing_battlepass.light.birthday",
+    "festivals": [
+      {
+        "id": "spring_festival",
+        "name": "春节",
+        "startDate": "01-25",
+        "endDate": "02-15",
+        "messageKey": "haojing_battlepass.light.festival_spring",
+        "message": "春节快乐！愿新的一年方块不断、好景常新。"
+      },
+      {
+        "id": "anniversary",
+        "name": "协会周年庆",
+        "startDate": "10-01",
+        "endDate": "10-07",
+        "messageKey": "haojing_battlepass.light.festival_anniversary",
+        "message": "协会周年庆快乐！感谢你又陪伴了一年。"
+      }
+    ]
+  }
+}

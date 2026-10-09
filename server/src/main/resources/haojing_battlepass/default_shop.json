@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "shop_title_scout",
+      "nameKey": "haojing_battlepass.shop.title_scout",
+      "descKey": "haojing_battlepass.shop.title_scout.desc",
+      "group": "titles",
+      "price": 30,
+      "limitPerPlayer": 1,
+      "enabled": true,
+      "reward": { "type": "TITLE", "titleId": "haojing_scout" }
+    },
+    {
+      "id": "shop_title_artisan",
+      "nameKey": "haojing_battlepass.shop.title_artisan",
+      "descKey": "haojing_battlepass.shop.title_artisan.desc",
+      "group": "titles",
+      "price": 60,
+      "limitPerPlayer": 1,
+      "enabled": true,
+      "reward": { "type": "TITLE", "titleId": "haojing_artisan" }
+    },
+    {
+      "id": "shop_title_nightwatch",
+      "nameKey": "haojing_battlepass.shop.title_nightwatch",
+      "descKey": "haojing_battlepass.shop.title_nightwatch.desc",
+      "group": "titles",
+      "price": 100,
+      "limitPerPlayer": 1,
+      "enabled": true,
+      "reward": { "type": "TITLE", "titleId": "haojing_nightwatch" }
+    },
+    {
+      "id": "shop_exempt_card",
+      "nameKey": "haojing_battlepass.shop.exempt_card",
+      "descKey": "haojing_battlepass.shop.exempt_card.desc",
+      "group": "consumable",
+      "price": 40,
+      "limitPerPlayer": 3,
+      "enabled": true,
+      "reward": { "type": "EXEMPT_CARD", "amount": 1 }
+    },
+    {
+      "id": "shop_trim_coast",
+      "nameKey": "haojing_battlepass.shop.trim_coast",
+      "group": "decor",
+      "price": 50,
+      "limitPerPlayer": 1,
+      "enabled": true,
+      "reward": { "type": "ITEM", "itemId": "minecraft:coast_armor_trim_smithing_template", "amount": 1 }
+    },
+    {
+      "id": "shop_trim_tide",
+      "nameKey": "haojing_battlepass.shop.trim_tide",
+      "group": "decor",
+      "price": 50,
+      "limitPerPlayer": 1,
+      "enabled": true,
+      "reward": { "type": "ITEM", "itemId": "minecraft:tide_armor_trim_smithing_template", "amount": 1 }
+    },
+    {
+      "id": "shop_banner_globe",
+      "nameKey": "haojing_battlepass.shop.banner_globe",
+      "group": "decor",
+      "price": 25,
+      "limitPerPlayer": 1,
+      "enabled": true,
+      "reward": { "type": "ITEM", "itemId": "minecraft:globe_banner_pattern", "amount": 1 }
+    }
+  ]
+}

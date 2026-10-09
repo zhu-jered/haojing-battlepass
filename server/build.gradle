@@ -1,0 +1,80 @@
+// 用途：服务端成品 jar。需求文档 §2 规定全部业务逻辑、任务校验、奖励计算只在服务端。
+// 注意这里没有客户端代码，因此 jar 里只有服务端入口，配合 fabric.mod.json 的 environment: "server"。
+
+plugins {
+    id 'fabric-loom'
+}
+
+loom {
+    // 为什么需要这一行：Loom 默认从 https://piston-meta.mojang.com 取版本清单，再取版本 JSON，
+    // 而本机 hosts 把该域名指向 127.0.0.1，必然失败。
+    // Loom 为此提供了官方钩子 customMinecraftMetadata（见 MinecraftMetadataProvider：
+    // 「Custom URL always takes priority」），直接指定版本 JSON 的 URL，从而完全跳过版本清单。
+    // 指向 BMCLAPI 的同路径代理，内容与原版一致，因此里面记录的 sha1 仍然是可用于校验的真值。
+    customMinecraftMetadata = "${project.bmclapi_base}/version/${project.minecraft_version}/json"
+}
+
+// 为什么并入 :common 的源码目录：见 :common/build.gradle 顶部说明。
+// 这样两端的协议类来自同一份源码，不需要第三个 jar。
+sourceSets {
+    main {
+        java.srcDir project(':common').file('src/main/java')
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    // 为什么测试要显式声明这些依赖：Loom 不会把 minecraft 相关配置自动挂到 test 源集，
+    // 而 Gson 与 slf4j 是随 Minecraft 的库列表进入编译类路径的，测试里直接引用会找不到。
+    // Gson 版本特意与 Minecraft 1.21.11 内置的 2.13.2 保持一致，避免版本分叉。
+    testImplementation "com.google.code.gson:gson:2.13.2"
+    testImplementation "org.slf4j:slf4j-api:2.0.17"
+    testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.11.4"
+}
+
+// 为什么需要下面这段路径判断：Gradle 把 test worker 的类路径通过 Java 的 @argfile 传递
+// （实测命令形如 java @<...>gradle-worker-classpath<n>txt worker...GradleWorkerMain），
+// 而 JDK 解析 @argfile 时用的是操作系统的 ANSI 代码页（中文 Windows 上是 GBK），不是 UTF-8，
+// 且无法用 -Dfile.encoding 或 JAVA_TOOL_OPTIONS 覆盖。因此只要类路径里出现非 ASCII 字符，
+// worker 就会报 ClassNotFoundException: worker.org.gradle.process.internal.worker.GradleWorkerMain。
+// 本工程目录名是「战令ds」，命中了这个限制。
+// 已用最小实验证实：同一份测试在纯 ASCII 路径下可正常运行，在中文路径下必然失败。
+// 所以在路径含非 ASCII 字符时跳过测试并醒目提示，避免 ./gradlew build 因为这个 JDK 限制而失败。
+def projectPathIsAscii = project.projectDir.absolutePath ==~ /[\x00-\x7F]*/
+def forceTests = project.hasProperty('forceTests') && project.property('forceTests').toString().toBoolean()
+
+test {
+    useJUnitPlatform()
+    // 测试名与断言消息都是中文，固定 UTF-8 以免报告乱码。
+    systemProperty 'file.encoding', 'UTF-8'
+
+    if (!projectPathIsAscii && !forceTests) {
+        enabled = false
+        logger.lifecycle("[HaoJingBP] 工程路径含非 ASCII 字符，已跳过单元测试：{}", project.projectDir)
+        logger.lifecycle("[HaoJingBP] 原因：JDK 用系统 ANSI 代码页解析 @argfile，无法处理非 ASCII 类路径；Gradle 固定用 @argfile 传 worker 类路径。")
+        logger.lifecycle("[HaoJingBP] 两条出路：①把工程改名/放到纯 ASCII 路径；②保留现名，但用一个 ASCII 联接跑测试：")
+        logger.lifecycle("[HaoJingBP]     mklink /J C:\\Users\\<你>\\Desktop\\haojing-bp \"C:\\Users\\<你>\\Desktop\\战令ds\"")
+        logger.lifecycle("[HaoJingBP]     然后在 haojing-bp 目录下执行 gradlew.bat :server:test（已实测可行）。")
+        logger.lifecycle("[HaoJingBP] 也可用 -PforceTests=true 在当前路径强制执行（预期失败）。")
+    }
+}
+
+// 产物名追加 -server，让两个 jar 在 build/libs 下一眼可分。
+base {
+    archivesName = "${project.archives_base_name}-server"
+}
+
+def modVersion = project.version
+
+processResources {
+    inputs.property 'version', modVersion
+    filesMatching('fabric.mod.json') {
+        // 为什么用 expand：fabric.mod.json 里写的是 ${version}，构建时替换为真实版本号。
+        expand 'version': modVersion
+    }
+}
