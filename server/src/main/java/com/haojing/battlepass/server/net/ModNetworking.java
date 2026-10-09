@@ -168,23 +168,50 @@ public final class ModNetworking {
                 syncService.syncNow(player);
                 reply(player, true, "haojing_battlepass.action.resync");
                 break;
-            case REROLL:
+            case REROLL: {
+                // 只能刷新已选定的任务组；未选组时拒绝。
+                var seasonReroll = dataManager.season(player.getUuid());
+                if (seasonReroll.chosenDailyGroup == null || !seasonReroll.chosenDailyGroup.equals(arg)) {
+                    reply(player, false, "haojing_battlepass.action.daily_group.not_chosen");
+                    break;
+                }
                 boolean rerolled = taskAssignmentService != null && taskAssignmentService.rerollGroup(player.getUuid(), arg);
                 reply(player, rerolled, rerolled ? "haojing_battlepass.action.reroll.ok" : "haojing_battlepass.action.reroll.fail");
                 break;
-            case CLAIM:
+            }
+            case CLAIM: {
+                // 领奖前校验：该任务必须属于本日已选定的组。
+                var seasonClaim = dataManager.season(player.getUuid());
+                String groupOfTask = groupOfDailyTask(seasonClaim, arg);
+                String chosen = seasonClaim.chosenDailyGroup == null ? "" : seasonClaim.chosenDailyGroup;
+                if (groupOfTask == null || !chosen.equals(groupOfTask)) {
+                    reply(player, false, "haojing_battlepass.action.daily_group.not_chosen");
+                    break;
+                }
                 BattlePassService.ClaimResult claim = battlePassService == null
                         ? new BattlePassService.ClaimResult(BattlePassService.ClaimOutcome.POOL_UNAVAILABLE, null, 0)
                         : battlePassService.claimTaskReward(player.getUuid(), arg);
                 reply(player, claim.outcome() == BattlePassService.ClaimOutcome.OK,
                         claimKey(claim.outcome()));
                 break;
-            case EXEMPT:
+            }
+            case EXEMPT: {
+                var seasonExempt = dataManager.season(player.getUuid());
+                if (seasonExempt.chosenDailyGroup == null || !seasonExempt.chosenDailyGroup.equals(arg)) {
+                    reply(player, false, "haojing_battlepass.action.daily_group.not_chosen");
+                    break;
+                }
                 BattlePassService.ExemptCardOutcome exempt = battlePassService == null
                         ? BattlePassService.ExemptCardOutcome.NO_CARD
                         : battlePassService.useExemptCard(player.getUuid(), arg);
                 reply(player, exempt == BattlePassService.ExemptCardOutcome.OK, exemptKey(exempt));
                 break;
+            }
+            case CHOOSE_DAILY_GROUP: {
+                boolean ok = chooseDailyGroup(player.getUuid(), arg);
+                reply(player, ok, ok ? "haojing_battlepass.action.daily_group.ok" : "haojing_battlepass.action.daily_group.fail");
+                break;
+            }
             case BUY:
                 ShopManager.PurchaseResult purchase = shopManager == null
                         ? new ShopManager.PurchaseResult(ShopManager.PurchaseOutcome.NOT_FOUND, arg, 0, 0)
@@ -269,6 +296,54 @@ public final class ModNetworking {
         reply(player, result.success(), result.messageKey());
         // 管理动作多半改了玩家的可见数据，直接全量刷新一次管理面板。
         syncService.pushAdminNow(player);
+    }
+
+    /**
+     * 玩家选择本日要做的每日任务组。只能在尚未选择时选一次；选完不可更改（当日）。
+     *
+     * @return 是否选组成功
+     */
+    private boolean chooseDailyGroup(java.util.UUID uuid, String group) {
+        if (dataManager == null || group == null) {
+            return false;
+        }
+
+        if (!com.haojing.battlepass.server.task.TaskPool.DAILY_GROUPS.contains(group)) {
+            return false;
+        }
+
+        var season = dataManager.season(uuid);
+
+        // 必须有该组的任务才能选（防御性：理论上 rollDailyInto 会保证三组都有）。
+        if (season.dailyTasks == null || !season.dailyTasks.containsKey(group)) {
+            return false;
+        }
+
+        if (season.chosenDailyGroup != null && !season.chosenDailyGroup.isEmpty()) {
+            return false;
+        }
+
+        season.chosenDailyGroup = group;
+        dataManager.markSeasonDirty(uuid);
+        return true;
+    }
+
+    /**
+     * 反查一个每日任务 ID 属于哪个组；不是当日每日任务时返回 null。
+     * 用于在玩家领奖前校验"这个任务是不是今天选定的组里的"。
+     */
+    private String groupOfDailyTask(com.haojing.battlepass.common.data.SeasonData season, String taskId) {
+        if (season == null || season.dailyTasks == null || taskId == null) {
+            return null;
+        }
+
+        for (var entry : season.dailyTasks.entrySet()) {
+            if (entry.getValue() != null && taskId.equals(entry.getValue().taskId)) {
+                return entry.getKey();
+            }
+        }
+
+        return null;
     }
 
     /**

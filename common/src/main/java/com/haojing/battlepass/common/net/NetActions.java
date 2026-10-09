@@ -41,7 +41,10 @@ public final class NetActions {
         TOGGLE_NAMETAG_TITLE(""),
 
         /** 选择分支：arg = HUNT / BUILD。 */
-        CHOOSE_BRANCH("branch");
+        CHOOSE_BRANCH("branch"),
+
+        /** 选择本日要做的每日任务组：arg = explore / build / general。选完后其它组锁定。 */
+        CHOOSE_DAILY_GROUP("group");
 
         private final String argHint;
 

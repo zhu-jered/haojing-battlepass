@@ -90,6 +90,14 @@ public class SeasonData {
     public Map<String, TaskProgress> dailyTasks = new LinkedHashMap<>();
 
     /**
+     * 玩家本日选定的每日任务组（explore / build / general）。空串表示尚未选择。
+     *
+     * <p>每日刷新时清空。选组后其它两组的任务仍可见但被锁定：不能领奖、不能刷新、不能用任务卡。
+     * 老存档缺这个字段时 Gson 给默认空串，行为等同于"尚未选择"，不会崩。
+     */
+    public String chosenDailyGroup = "";
+
+    /**
      * 每周挑战进度，键为任务 ID。
      */
     public Map<String, TaskProgress> weeklyTasks = new LinkedHashMap<>();

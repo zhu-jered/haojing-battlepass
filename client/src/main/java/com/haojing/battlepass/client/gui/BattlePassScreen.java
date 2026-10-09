@@ -454,11 +454,50 @@ public class BattlePassScreen extends Screen {
     private void buildDaily(List<Row> built) {
         ModSnapshots.Tasks tasks = ClientNetworking.state().tasks();
         String[] groups = {"explore", "build", "general"};
+        String chosen = tasks.chosenGroup == null ? "" : tasks.chosenGroup;
+        boolean noneChosen = chosen.isEmpty();
+
+        if (noneChosen) {
+            built.add(row(Text.translatable("haojing_battlepass.gui.daily.group_prompt")
+                    .formatted(Formatting.YELLOW)));
+        }
 
         for (String group : groups) {
             String groupName = Text.translatable("haojing_battlepass.gui.group." + group).getString();
+            boolean isChosen = group.equals(chosen);
+            boolean isLocked = !noneChosen && !isChosen;
+
+            // 分组标题行：当前组高亮，锁定组灰色，未选时普通。
+            MutableText header = Text.literal("§e§l—— ").copy()
+                    .append(Text.translatable("haojing_battlepass.gui.group." + group));
+            if (isChosen) {
+                header.append(Text.literal("  ").append(
+                        Text.translatable("haojing_battlepass.gui.daily.group_active")).formatted(Formatting.GREEN));
+            } else if (isLocked) {
+                header.append(Text.literal("  ").append(
+                        Text.translatable("haojing_battlepass.gui.daily.group_locked")).formatted(Formatting.DARK_GRAY));
+            }
+            header.append(Text.literal(" §r§e§l——"));
+            built.add(row(header.formatted(isLocked ? Formatting.DARK_GRAY : Formatting.RESET)));
+
+            if (noneChosen) {
+                // 还没选组：每个组给一个"选择本组"按钮，不展开任务内容。
+                built.add(new Row(
+                        Text.translatable("haojing_battlepass.gui.daily.reroll", groupName),
+                        "haojing_battlepass.gui.daily.group_choose_button", () -> {
+                    ClientNetworking.sendAction(NetActions.ClientAction.CHOOSE_DAILY_GROUP, group);
+                    rebuild();
+                }, true, null, null, 0, null));
+                continue;
+            }
 
             for (ModSnapshots.TaskLine line : tasks.group(group)) {
+                if (isLocked) {
+                    // 锁定组：任务行灰色显示但没有按钮（服务端也会拒绝领奖）。
+                    built.add(lockedTaskRow(line));
+                    continue;
+                }
+
                 built.add(taskRow(line));
 
                 built.add(row(Text.translatable("haojing_battlepass.gui.daily.reroll", groupName),
@@ -478,6 +517,15 @@ public class BattlePassScreen extends Screen {
         if (built.isEmpty()) {
             built.add(row(Text.translatable("haojing_battlepass.gui.empty")));
         }
+    }
+
+    /** 锁定组的任务行：灰色文字，不可选中、无按钮、无 Tooltip。 */
+    private Row lockedTaskRow(ModSnapshots.TaskLine line) {
+        MutableText text = Text.translatableWithFallback("haojing_battlepass.task." + line.id, line.name)
+                .copy().formatted(Formatting.DARK_GRAY);
+        text.append(Text.literal("  ").append(Text.translatable("haojing_battlepass.gui.task.progress",
+                line.progress, line.target)).formatted(Formatting.DARK_GRAY));
+        return new Row(text, null, null, false, null, null, 0, null);
     }
 
     private void buildWeekly(List<Row> built) {

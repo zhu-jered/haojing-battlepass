@@ -116,6 +116,9 @@ public final class ModSnapshots {
         public List<TaskLine> general = new ArrayList<>();
         public List<TaskLine> weekly = new ArrayList<>();
 
+        /** 玩家本日已选定的每日任务组；空串表示尚未选择（其它组显示"选择本组"按钮）。 */
+        public String chosenGroup = "";
+
         /** @return 该组对应的列表；组名非法时返回空列表。 */
         public List<TaskLine> group(String name) {
             if ("explore".equalsIgnoreCase(name)) {

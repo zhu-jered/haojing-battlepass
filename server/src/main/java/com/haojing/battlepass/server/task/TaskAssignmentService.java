@@ -318,6 +318,8 @@ public final class TaskAssignmentService implements AutoCloseable {
         // §5.10 的每日经验上限按「业务日」计，因此随每日刷新一并清零。
         season.dailyXpEarned = 0;
         season.lastDailyRefreshDate = businessDate;
+        // 每日任务组选择每日刷新后重置，玩家第二天重新选。
+        season.chosenDailyGroup = "";
 
         if (rolled.size() < TaskPool.DAILY_GROUPS.size()) {
             LOGGER.warn("{} 玩家 {} 的每日任务只抽出 {}/{} 组：对应组的任务池太小或被排除集占满",

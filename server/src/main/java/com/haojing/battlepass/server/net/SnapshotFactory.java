@@ -161,6 +161,8 @@ public final class SnapshotFactory {
         SeasonData season = dataManager.season(playerUuid);
         TaskPool pool = taskPoolManager == null ? null : taskPoolManager.pool();
 
+        snapshot.chosenGroup = season.chosenDailyGroup == null ? "" : season.chosenDailyGroup;
+
         if (pool == null) {
             return snapshot;
         }
