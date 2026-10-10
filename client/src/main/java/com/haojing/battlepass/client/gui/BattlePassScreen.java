@@ -712,19 +712,21 @@ public class BattlePassScreen extends Screen {
         context.drawTextWithShadow(this.textRenderer, "切换", px + pw - sw - 10, y, 0xFFCCCCCC);
         y += 14;
 
-        // 已装备卡片
-        if (!titles.equipped.isEmpty() && titles.definitions != null) {
-            for (ModSnapshots.TitleDef def : titles.definitions) {
-                if (def.id.equals(titles.equipped)) {
-                    String eqName = (def.name != null && !def.name.isEmpty())
-                            ? def.name : titleText(def.id).getString();
-                    drawCard(context, px, y, pw, 28, 0xFF55AA55);
-                    context.drawTextWithShadow(this.textRenderer, "当前装备", px + 6, y + 5, dimColor);
-                    context.drawTextWithShadow(this.textRenderer, eqName, px + 6, y + 15, 0xFFFFDD44);
-                    y += 34;
-                    break;
+        // 已装备卡片（不依赖 definitions 匹配）
+        if (!titles.equipped.isEmpty()) {
+            String eqName = titles.equipped;
+            if (titles.definitions != null) {
+                for (ModSnapshots.TitleDef def : titles.definitions) {
+                    if (def.id.equals(titles.equipped) && def.name != null && !def.name.isEmpty()) {
+                        eqName = def.name;
+                        break;
+                    }
                 }
             }
+            drawCard(context, px, y, pw, 28, 0xFF55AA55);
+            context.drawTextWithShadow(this.textRenderer, "当前装备", px + 6, y + 5, dimColor);
+            context.drawTextWithShadow(this.textRenderer, eqName, px + 6, y + 15, 0xFFFFDD44);
+            y += 34;
         }
 
         // 已拥有 / 未拥有
@@ -918,46 +920,13 @@ public class BattlePassScreen extends Screen {
 
             int cy = y0 + 28;
             // 已装备卸下按钮
-            if (!titles.equipped.isEmpty() && titles.definitions != null) {
-                for (ModSnapshots.TitleDef def : titles.definitions) {
-                    if (def.id.equals(titles.equipped)) {
-                        ButtonWidget unequip = ButtonWidget.builder(Text.literal("卸下"), w -> {
-                            ClientNetworking.sendAction(NetActions.ClientAction.EQUIP_TITLE, "");
-                            rebuild();
-                        }).dimensions(px + pw - 50, cy + 8, 44, 12).build();
-                        addDrawableChild(unequip);
-                        cy += 34;
-                        break;
-                    }
-                }
-            }
-
-            // 已拥有称号：每个名称位置放一个透明可点击区域
-            java.util.List<ModSnapshots.TitleDef> owned = new java.util.ArrayList<>();
-            if (titles.definitions != null) {
-                for (ModSnapshots.TitleDef def : titles.definitions) {
-                    if (def.id.equals(titles.equipped)) continue;
-                    if (titles.unlocked != null && titles.unlocked.contains(def.id)) {
-                        owned.add(def);
-                    }
-                }
-            }
-            if (!owned.isEmpty()) {
-                int rows = (owned.size() + 1) / 2;
-                int colW = (pw - 16) / 2;
-                for (int i = 0; i < owned.size(); i++) {
-                    ModSnapshots.TitleDef def = owned.get(i);
-                    int col = i % 2;
-                    int row = i / 2;
-                    int bx = px + 8 + col * colW;
-                    int by = cy + 14 + row * 12 - 2;
-                    ButtonWidget equip = ButtonWidget.builder(Text.literal(""), w -> {
-                        ClientNetworking.sendAction(NetActions.ClientAction.EQUIP_TITLE, def.id);
-                        rebuild();
-                    }).dimensions(bx, by, colW - 8, 12).build();
-                    equip.active = true;
-                    addDrawableChild(equip);
-                }
+            if (!titles.equipped.isEmpty()) {
+                ButtonWidget unequip = ButtonWidget.builder(Text.literal("卸下"), w -> {
+                    ClientNetworking.sendAction(NetActions.ClientAction.EQUIP_TITLE, "");
+                    rebuild();
+                }).dimensions(px + pw - 50, cy + 8, 44, 12).build();
+                addDrawableChild(unequip);
+                cy += 34;
             }
         }
     }
