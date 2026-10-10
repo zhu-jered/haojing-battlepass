@@ -108,24 +108,7 @@ public class BattlePassScreen extends Screen {
         int rowsPerPage = layout.rowsPerPage();
         int firstRow = page * rowsPerPage;
 
-        for (int index = 0; index < visibleRowCount(); index++) {
-            Row row = rows.get(firstRow + index);
-
-            // 自定义卡片渲染的 tab 不添加旧按钮，避免重叠
-            if (tab > 5) {
-                if (row.actionKey() != null) {
-                    ButtonWidget action = ButtonWidget.builder(Text.translatable(row.actionKey()), widget -> {
-                        if (row.action() != null) {
-                            row.action().run();
-                        }
-                    }).dimensions(layout.actionButtonX(), layout.rowY(index) - 2,
-                            layout.actionButtonWidth(), layout.rowHeight() - 2).build();
-
-                    action.active = row.enabled();
-                    addDrawableChild(action);
-                }
-            }
-        }
+        addCustomButtons();
 
         // 底部：翻页与关闭（全部落在面板内，不再有"按钮一半在屏幕外"的问题）。
         int buttonHeight = layout.footerButtonHeight();
@@ -677,7 +660,7 @@ public class BattlePassScreen extends Screen {
             context.drawTextWithShadow(this.textRenderer, name, px + 10, ly, nameColor);
 
             // 右侧区域：价格 + 限购 + 状态（从右往左排）
-            String btnText = limitReached ? "已售罄" : (affordable ? "购买" : "金币不足");
+            String btnText = limitReached ? "已售罄" : (affordable ? "购买" : "京币不足");
             int btnColor = limitReached ? dimColor : (affordable ? 0xFF55AA55 : 0xFFAA4444);
             int btnW = this.textRenderer.getWidth(btnText);
             context.drawTextWithShadow(this.textRenderer, btnText, px + pw - btnW - 10, ly, btnColor);
@@ -852,6 +835,117 @@ public class BattlePassScreen extends Screen {
         context.drawTextWithShadow(this.textRenderer,
                 Text.translatable("haojing_battlepass.gui.page", page + 1, pageCount()),
                 layout.panelX() + layout.panelWidth() / 2 - 24, layout.footerY() + 4, GuiColors.TEXT_DIM);
+    }
+
+    /** 为自定义卡片渲染的 tab 按卡片位置添加可点击按钮。 */
+    private void addCustomButtons() {
+        int px = layout.panelX() + 6;
+        int pw = layout.panelWidth() - 12;
+        int y0 = layout.contentTop();
+
+        if (tab == 1) { // 每日
+            ModSnapshots.Tasks tasks = ClientNetworking.state().tasks();
+            String chosen = tasks.chosenGroup == null ? "" : tasks.chosenGroup;
+            String[] groups = {"explore", "build", "general"};
+            int cy = y0;
+            for (String group : groups) {
+                var lines = tasks.group(group);
+                boolean isChosen = group.equals(chosen);
+                boolean isLocked = !chosen.isEmpty() && !isChosen;
+                int cardH = 24 + lines.size() * 22 + (isChosen ? 30 : 0);
+                if (chosen.isEmpty()) cardH = 40;
+
+                if (isChosen) {
+                    int ly = cy + 20 + lines.size() * 22 + 4;
+                    // 刷新按钮
+                    ButtonWidget reroll = ButtonWidget.builder(Text.literal("刷新"), w -> {
+                        ClientNetworking.sendAction(NetActions.ClientAction.REROLL, group);
+                        rebuild();
+                    }).dimensions(px + 10, ly, 50, 12).build();
+                    addDrawableChild(reroll);
+                    // 跳过按钮
+                    ButtonWidget exempt = ButtonWidget.builder(Text.literal("跳过"), w -> {
+                        ClientNetworking.sendAction(NetActions.ClientAction.EXEMPT, group);
+                        rebuild();
+                    }).dimensions(px + 70, ly, 50, 12).build();
+                    addDrawableChild(exempt);
+                }
+                cy += cardH + 6;
+            }
+        } else if (tab == 3) { // 商店
+            ModSnapshots.Shop shop = ClientNetworking.state().shop();
+            int cy = y0 + 16; // 余额行之后
+            int ly = cy + 22;
+            for (ModSnapshots.ShopLine item : shop.items) {
+                boolean limitReached = item.limitPerPlayer > 0 && item.purchased >= item.limitPerPlayer;
+                boolean affordable = shop.starCoin >= item.price;
+                ButtonWidget buy = ButtonWidget.builder(Text.literal(limitReached ? "已售罄" : "购买"), w -> {
+                    ClientNetworking.sendAction(NetActions.ClientAction.BUY, item.id);
+                    rebuild();
+                }).dimensions(px + pw - 50, ly - 2, 44, 12).build();
+                buy.active = affordable && !limitReached;
+                addDrawableChild(buy);
+                ly += 24;
+            }
+        } else if (tab == 4) { // 称号
+            ModSnapshots.Titles titles = ClientNetworking.state().titles();
+            ModSnapshots.Player self = ClientNetworking.state().player();
+            // 聊天切换
+            ButtonWidget chatToggle = ButtonWidget.builder(Text.literal("切换"), w -> {
+                ClientNetworking.sendAction(NetActions.ClientAction.TOGGLE_CHAT_TITLE, "");
+                rebuild();
+            }).dimensions(px + pw - 50, y0 - 2, 44, 12).build();
+            addDrawableChild(chatToggle);
+            // 头顶切换
+            ButtonWidget nameToggle = ButtonWidget.builder(Text.literal("切换"), w -> {
+                ClientNetworking.sendAction(NetActions.ClientAction.TOGGLE_NAMETAG_TITLE, "");
+                rebuild();
+            }).dimensions(px + pw - 50, y0 + 12, 44, 12).build();
+            addDrawableChild(nameToggle);
+
+            // 已装备卸下
+            int cy = y0 + 28;
+            if (!titles.equipped.isEmpty() && titles.definitions != null) {
+                for (ModSnapshots.TitleDef def : titles.definitions) {
+                    if (def.id.equals(titles.equipped)) {
+                        ButtonWidget unequip = ButtonWidget.builder(Text.literal("卸下"), w -> {
+                            ClientNetworking.sendAction(NetActions.ClientAction.EQUIP_TITLE, "");
+                            rebuild();
+                        }).dimensions(px + pw - 50, cy + 8, 44, 12).build();
+                        addDrawableChild(unequip);
+                        break;
+                    }
+                }
+                cy += 34;
+            }
+
+            // 已拥有称号点击装备
+            java.util.List<ModSnapshots.TitleDef> owned = new java.util.ArrayList<>();
+            if (titles.definitions != null) {
+                for (ModSnapshots.TitleDef def : titles.definitions) {
+                    if (titles.unlocked != null && titles.unlocked.contains(def.id) && !def.id.equals(titles.equipped)) {
+                        owned.add(def);
+                    }
+                }
+            }
+            if (!owned.isEmpty()) {
+                int rows = (owned.size() + 1) / 2;
+                int colW = (pw - 16) / 2;
+                for (int i = 0; i < owned.size(); i++) {
+                    ModSnapshots.TitleDef def = owned.get(i);
+                    int col = i % 2;
+                    int row = i / 2;
+                    int bx = px + 10 + col * colW;
+                    int by = cy + 14 + row * 12;
+                    ButtonWidget equip = ButtonWidget.builder(Text.literal(" "), w -> {
+                        ClientNetworking.sendAction(NetActions.ClientAction.EQUIP_TITLE, def.id);
+                        rebuild();
+                    }).dimensions(bx - 2, by - 2, colW - 10, 12).build();
+                    equip.active = true;
+                    addDrawableChild(equip);
+                }
+            }
+        }
     }
 
     private void buildHome(List<Row> built) {
