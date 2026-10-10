@@ -598,8 +598,6 @@ public class BattlePassScreen extends Screen {
 
             if (isChosen) {
                 ly += 4;
-                context.drawTextWithShadow(this.textRenderer, "刷新本组任务", px + 10, ly, 0xFFCCCCCC);
-                context.drawTextWithShadow(this.textRenderer, "使用任务卡完成", px + 120, ly, 0xFFCCCCCC);
             }
 
             y += cardH + 6;
@@ -659,20 +657,23 @@ public class BattlePassScreen extends Screen {
             int nameColor = limitReached ? dimColor : 0xFFFFFFFF;
             context.drawTextWithShadow(this.textRenderer, name, px + 10, ly, nameColor);
 
-            // 右侧区域：价格 + 限购 + 状态（从右往左排）
+            // 右侧区域：按钮最右，价格在按钮左边，限购在中间
             String btnText = limitReached ? "已售罄" : (affordable ? "购买" : "京币不足");
+            int btnW = this.textRenderer.getWidth(btnText) + 8;
+            int btnRight = px + pw - 10;
+            int btnLeft = btnRight - btnW;
             int btnColor = limitReached ? dimColor : (affordable ? 0xFF55AA55 : 0xFFAA4444);
-            int btnW = this.textRenderer.getWidth(btnText);
-            context.drawTextWithShadow(this.textRenderer, btnText, px + pw - btnW - 10, ly, btnColor);
+            context.drawTextWithShadow(this.textRenderer, btnText, btnLeft, ly, btnColor);
 
             String priceStr = item.price + " 京币";
             int priceW = this.textRenderer.getWidth(priceStr);
-            context.drawTextWithShadow(this.textRenderer, priceStr, px + pw - btnW - 20 - priceW, ly,
+            context.drawTextWithShadow(this.textRenderer, priceStr, btnLeft - 8 - priceW, ly,
                     limitReached ? dimColor : 0xFFFFDD44);
 
             if (item.limitPerPlayer > 0) {
                 String limitStr = "限购" + item.purchased + "/" + item.limitPerPlayer;
-                context.drawTextWithShadow(this.textRenderer, limitStr, px + 180, ly, dimColor);
+                int limitW = this.textRenderer.getWidth(limitStr);
+                context.drawTextWithShadow(this.textRenderer, limitStr, btnLeft - 16 - priceW - limitW, ly, dimColor);
             }
 
             ly += 24;
@@ -857,32 +858,32 @@ public class BattlePassScreen extends Screen {
 
                 if (isChosen) {
                     int ly = cy + 20 + lines.size() * 22 + 4;
-                    // 刷新按钮
                     ButtonWidget reroll = ButtonWidget.builder(Text.literal("刷新"), w -> {
                         ClientNetworking.sendAction(NetActions.ClientAction.REROLL, group);
                         rebuild();
-                    }).dimensions(px + 10, ly, 50, 12).build();
+                    }).dimensions(px + 10, ly, 44, 12).build();
                     addDrawableChild(reroll);
-                    // 跳过按钮
                     ButtonWidget exempt = ButtonWidget.builder(Text.literal("跳过"), w -> {
                         ClientNetworking.sendAction(NetActions.ClientAction.EXEMPT, group);
                         rebuild();
-                    }).dimensions(px + 70, ly, 50, 12).build();
+                    }).dimensions(px + 60, ly, 44, 12).build();
                     addDrawableChild(exempt);
                 }
                 cy += cardH + 6;
             }
         } else if (tab == 3) { // 商店
             ModSnapshots.Shop shop = ClientNetworking.state().shop();
-            int cy = y0 + 16; // 余额行之后
+            int cy = y0 + 16;
             int ly = cy + 22;
             for (ModSnapshots.ShopLine item : shop.items) {
                 boolean limitReached = item.limitPerPlayer > 0 && item.purchased >= item.limitPerPlayer;
                 boolean affordable = shop.starCoin >= item.price;
-                ButtonWidget buy = ButtonWidget.builder(Text.literal(limitReached ? "已售罄" : "购买"), w -> {
+                String btnText = limitReached ? "已售罄" : "购买";
+                int btnW = this.textRenderer.getWidth(btnText) + 8;
+                ButtonWidget buy = ButtonWidget.builder(Text.literal(btnText), w -> {
                     ClientNetworking.sendAction(NetActions.ClientAction.BUY, item.id);
                     rebuild();
-                }).dimensions(px + pw - 50, ly - 2, 44, 12).build();
+                }).dimensions(px + pw - btnW - 10, ly - 2, btnW, 12).build();
                 buy.active = affordable && !limitReached;
                 addDrawableChild(buy);
                 ly += 24;
