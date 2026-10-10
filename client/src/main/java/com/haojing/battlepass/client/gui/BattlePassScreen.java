@@ -175,43 +175,15 @@ public class BattlePassScreen extends Screen {
                 context.drawCenteredTextWithShadow(this.textRenderer,
                         Text.translatable("haojing_battlepass.gui.waiting"),
                         layout.panelX() + layout.panelWidth() / 2, layout.contentTop() + 20, GuiColors.WAITING);
-            } else if (tab == 0) {
-                renderHomeCustom(context);
             } else {
-                int firstRow = page * layout.rowsPerPage();
-
-                for (int index = 0; index < visibleRowCount(); index++) {
-                    Row row = rows.get(firstRow + index);
-                    int rowTop = layout.rowY(index);
-                    int rowBottom = rowTop + layout.rowHeight();
-
-                    // ② 选中行：背景加深 + 边框矩形（仿"选择世界"界面）。
-                    if (row.rowKey() != null && row.rowKey().equals(selectedRowKey)) {
-                        int bodyRight = layout.actionButtonX() - 2;
-                        context.fill(layout.panelX() + 2, rowTop, bodyRight, rowBottom,
-                                style.selectionDimArgb);
-                        // 1 像素边框：上、下、左、右。
-                        context.fill(layout.panelX() + 2, rowTop, bodyRight, rowTop + 1,
-                                style.selectionBorderColor);
-                        context.fill(layout.panelX() + 2, rowBottom - 1, bodyRight, rowBottom,
-                                style.selectionBorderColor);
-                        context.fill(layout.panelX() + 2, rowTop, layout.panelX() + 3, rowBottom,
-                                style.selectionBorderColor);
-                        context.fill(bodyRight - 1, rowTop, bodyRight, rowBottom,
-                                style.selectionBorderColor);
-                    }
-
-                    context.drawTextWithShadow(this.textRenderer, row.text(),
-                            layout.panelX() + 4, rowTop + 2, GuiColors.TEXT);
-                }
-
-                context.drawTextWithShadow(this.textRenderer,
-                        Text.translatable("haojing_battlepass.gui.page", page + 1, pageCount()),
-                        layout.panelX() + layout.panelWidth() / 2 - 24, layout.footerY() + 4, GuiColors.TEXT_DIM);
-
-                // 首页右下角：常驻社团可点击文字（不遮挡任何按钮/组件）。
-                if (tab == 0) {
-                    renderCommunityLine(context, style);
+                switch (tab) {
+                    case 0 -> renderHomeCustom(context);
+                    case 1 -> renderDailyCustom(context);
+                    case 2 -> renderWeeklyCustom(context);
+                    case 3 -> renderShopCustom(context);
+                    case 4 -> renderTitlesCustom(context);
+                    case 5 -> renderCollectionCustom(context);
+                    default -> renderRowList(context);
                 }
             }
         }
@@ -576,6 +548,300 @@ public class BattlePassScreen extends Screen {
                     "§e▶ " + Text.translatable("haojing_battlepass.gui.home.branch_prompt").getString(),
                     px, y, 0xFFFFFF55);
         }
+    }
+
+    /** 画一个卡片边框矩形。 */
+    private void drawCard(DrawContext context, int x, int y, int w, int h, int borderColor) {
+        context.fill(x, y, x + w, y + h, CARD_BG);
+        context.fill(x, y, x + w, y + 1, borderColor);
+        context.fill(x, y + h - 1, x + w, y + h, borderColor);
+        context.fill(x, y, x + 1, y + h, borderColor);
+        context.fill(x + w - 1, y, x + w, y + h, borderColor);
+    }
+
+    /** 画进度条。 */
+    private void drawProgressBar(DrawContext context, int x, int y, int w, int h, int progress, int target) {
+        context.fill(x, y, x + w, y + h, 0xFF303030);
+        if (target > 0) {
+            int fillW = Math.max(1, Math.min(w, w * Math.min(progress, target) / target));
+            int color = progress >= target ? 0xFF44AA44 : 0xFFCCAA33;
+            context.fill(x, y, x + fillW, y + h, color);
+        }
+    }
+
+    private void renderDailyCustom(DrawContext context) {
+        ModSnapshots.Tasks tasks = ClientNetworking.state().tasks();
+        int px = layout.panelX() + 6;
+        int pw = layout.panelWidth() - 12;
+        int y = layout.contentTop();
+        int dimColor = 0xFF888888;
+
+        String[] groups = {"explore", "build", "general"};
+        String chosen = tasks.chosenGroup == null ? "" : tasks.chosenGroup;
+
+        for (String group : groups) {
+            String groupName = Text.translatable("haojing_battlepass.gui.group." + group).getString();
+            boolean isChosen = group.equals(chosen);
+            boolean isLocked = !chosen.isEmpty() && !isChosen;
+            int borderColor = isChosen ? 0xFF55AA55 : (isLocked ? 0xFF444444 : CARD_BORDER);
+
+            var lines = tasks.group(group);
+            int cardH = 24 + lines.size() * 22 + (isChosen ? 30 : 0);
+            if (chosen.isEmpty()) cardH = 40;
+
+            drawCard(context, px, y, pw, cardH, borderColor);
+            String status = isChosen ? "已选中" : (isLocked ? "已锁定" : "未选择");
+            int statusColor = isChosen ? 0xFF55FF55 : (isLocked ? dimColor : 0xFFFFCC44);
+            context.drawTextWithShadow(this.textRenderer, groupName, px + 6, y + 6,
+                    isLocked ? dimColor : 0xFFFFFFFF);
+            int sw = this.textRenderer.getWidth(status);
+            context.drawTextWithShadow(this.textRenderer, status, px + pw - sw - 6, y + 6, statusColor);
+
+            int ly = y + 20;
+            for (ModSnapshots.TaskLine line : lines) {
+                String name = Text.translatableWithFallback("haojing_battlepass.task." + line.id, line.name).getString();
+                String progressStr = line.progress + "/" + line.target;
+                context.drawTextWithShadow(this.textRenderer, name, px + 10, ly,
+                        isLocked ? dimColor : 0xFFFFFFFF);
+                int pw2 = this.textRenderer.getWidth(progressStr);
+                context.drawTextWithShadow(this.textRenderer, progressStr, px + pw - pw2 - 10, ly,
+                        isLocked ? dimColor : 0xFFCCCCCC);
+                drawProgressBar(context, px + 10, ly + 12, pw - 20, 4, line.progress, line.target);
+                ly += 22;
+            }
+
+            if (isChosen) {
+                ly += 4;
+                context.drawTextWithShadow(this.textRenderer, "刷新本组任务", px + 10, ly, 0xFFCCCCCC);
+                context.drawTextWithShadow(this.textRenderer, "使用任务卡完成", px + 120, ly, 0xFFCCCCCC);
+            }
+
+            y += cardH + 6;
+        }
+    }
+
+    private void renderWeeklyCustom(DrawContext context) {
+        ModSnapshots.Tasks tasks = ClientNetworking.state().tasks();
+        int px = layout.panelX() + 6;
+        int pw = layout.panelWidth() - 12;
+        int y = layout.contentTop();
+        int dimColor = 0xFF888888;
+
+        int cardH = 20 + tasks.weekly.size() * 48;
+        drawCard(context, px, y, pw, cardH, CARD_BORDER);
+        context.drawTextWithShadow(this.textRenderer, "每周挑战", px + 6, y + 6, 0xFFFFFFFF);
+
+        int ly = y + 22;
+        for (ModSnapshots.TaskLine line : tasks.weekly) {
+            String name = Text.translatableWithFallback("haojing_battlepass.task." + line.id, line.name).getString();
+            boolean done = line.progress >= line.target;
+            String status = done ? "已完成" : (line.progress > 0 ? "进行中" : "未开始");
+            int statusColor = done ? 0xFF55FF55 : (line.progress > 0 ? 0xFFFFCC44 : dimColor);
+
+            context.drawTextWithShadow(this.textRenderer, name, px + 10, ly, 0xFFFFFFFF);
+            int sw = this.textRenderer.getWidth(status);
+            context.drawTextWithShadow(this.textRenderer, status, px + pw - sw - 10, ly, statusColor);
+
+            String progressStr = line.progress + "/" + line.target;
+            context.drawTextWithShadow(this.textRenderer, progressStr, px + 10, ly + 12, 0xFFCCCCCC);
+            drawProgressBar(context, px + 10, ly + 24, pw - 20, 5, line.progress, line.target);
+            ly += 48;
+        }
+    }
+
+    private void renderShopCustom(DrawContext context) {
+        ModSnapshots.Shop shop = ClientNetworking.state().shop();
+        int px = layout.panelX() + 6;
+        int pw = layout.panelWidth() - 12;
+        int y = layout.contentTop();
+        int dimColor = 0xFF888888;
+
+        // 余额
+        context.drawTextWithShadow(this.textRenderer, "京币余额：" + shop.starCoin, px, y, 0xFFFFDD44);
+        y += 16;
+
+        int cardH = 24 + shop.items.size() * 24;
+        drawCard(context, px, y, pw, cardH, CARD_BORDER);
+        context.drawTextWithShadow(this.textRenderer, "商品列表", px + 6, y + 6, 0xFFFFFFFF);
+
+        int ly = y + 22;
+        for (ModSnapshots.ShopLine item : shop.items) {
+            String name = Text.translatableWithFallback(item.nameKey, item.id).getString();
+            boolean limitReached = item.limitPerPlayer > 0 && item.purchased >= item.limitPerPlayer;
+            boolean affordable = shop.starCoin >= item.price;
+
+            int nameColor = limitReached ? dimColor : 0xFFFFFFFF;
+            context.drawTextWithShadow(this.textRenderer, name, px + 10, ly, nameColor);
+
+            String priceStr = item.price + " 京币";
+            int priceW = this.textRenderer.getWidth(priceStr);
+            context.drawTextWithShadow(this.textRenderer, priceStr, px + pw - priceW - 80, ly,
+                    limitReached ? dimColor : 0xFFFFDD44);
+
+            if (item.limitPerPlayer > 0) {
+                String limitStr = "限购 " + item.purchased + "/" + item.limitPerPlayer;
+                context.drawTextWithShadow(this.textRenderer, limitStr, px + pw - priceW - 70, ly, dimColor);
+            }
+
+            String btnText = limitReached ? "已售罄" : (affordable ? "购买" : "金币不足");
+            int btnColor = limitReached ? dimColor : (affordable ? 0xFF55AA55 : 0xFFAA4444);
+            context.drawTextWithShadow(this.textRenderer, btnText, px + pw - 50, ly, btnColor);
+            ly += 24;
+        }
+    }
+
+    private void renderTitlesCustom(DrawContext context) {
+        ModSnapshots.Titles titles = ClientNetworking.state().titles();
+        ModSnapshots.Player self = ClientNetworking.state().player();
+        int px = layout.panelX() + 6;
+        int pw = layout.panelWidth() - 12;
+        int y = layout.contentTop();
+        int dimColor = 0xFF888888;
+
+        // 开关
+        context.drawTextWithShadow(this.textRenderer, "聊天称号：" + (self.chatTitleVisible ? "开启" : "关闭"),
+                px, y, 0xFFFFFFFF);
+        int sw = this.textRenderer.getWidth("切换");
+        context.drawTextWithShadow(this.textRenderer, "切换", px + pw - sw - 10, y, 0xFFCCCCCC);
+        y += 14;
+        context.drawTextWithShadow(this.textRenderer, "头顶称号：" + (self.nametagTitleVisible ? "开启" : "关闭"),
+                px, y, 0xFFFFFFFF);
+        context.drawTextWithShadow(this.textRenderer, "切换", px + pw - sw - 10, y, 0xFFCCCCCC);
+        y += 14;
+
+        // 已装备
+        if (!titles.equipped.isEmpty() && titles.definitions != null) {
+            for (ModSnapshots.TitleDef def : titles.definitions) {
+                if (def.id.equals(titles.equipped)) {
+                    String eqName = (def.name == null || def.name.isEmpty()) ? def.id : def.name;
+                    drawCard(context, px, y, pw, 28, 0xFF55AA55);
+                    context.drawTextWithShadow(this.textRenderer, "当前装备", px + 6, y + 5, dimColor);
+                    context.drawTextWithShadow(this.textRenderer, eqName, px + 6, y + 15, 0xFFFFDD44);
+                    int uw = this.textRenderer.getWidth("卸下");
+                    context.drawTextWithShadow(this.textRenderer, "卸下", px + pw - uw - 10, y + 10, 0xFFAA4444);
+                    y += 34;
+                    break;
+                }
+            }
+        }
+
+        // 已拥有
+        java.util.List<ModSnapshots.TitleDef> owned = new java.util.ArrayList<>();
+        java.util.List<ModSnapshots.TitleDef> locked = new java.util.ArrayList<>();
+        if (titles.definitions != null) {
+            for (ModSnapshots.TitleDef def : titles.definitions) {
+                boolean un = titles.unlocked != null && titles.unlocked.contains(def.id);
+                if (un) owned.add(def);
+                else locked.add(def);
+            }
+        }
+
+        if (!owned.isEmpty()) {
+            drawCard(context, px, y, pw, 24 + ((owned.size() + 1) / 2) * 14, CARD_BORDER);
+            context.drawTextWithShadow(this.textRenderer, "已拥有", px + 6, y + 5, dimColor);
+            int ly = y + 18;
+            int colW = (pw - 16) / 2;
+            for (int i = 0; i < owned.size(); i++) {
+                ModSnapshots.TitleDef def = owned.get(i);
+                String name = (def.name == null || def.name.isEmpty()) ? def.id : def.name;
+                int col = i % 2;
+                int row = i / 2;
+                context.drawTextWithShadow(this.textRenderer, name, px + 10 + col * colW, y + 16 + row * 12,
+                        0xFFFFFFFF);
+            }
+            y += 24 + ((owned.size() + 1) / 2) * 14 + 6;
+        }
+
+        if (!locked.isEmpty()) {
+            drawCard(context, px, y, pw, 24 + ((locked.size() + 1) / 2) * 12, 0xFF444444);
+            context.drawTextWithShadow(this.textRenderer, "未拥有", px + 6, y + 5, dimColor);
+            for (int i = 0; i < locked.size(); i++) {
+                ModSnapshots.TitleDef def = locked.get(i);
+                String name = (def.name == null || def.name.isEmpty()) ? def.id : def.name;
+                int col = i % 2;
+                int row = i / 2;
+                int colW = (pw - 16) / 2;
+                context.drawTextWithShadow(this.textRenderer, name, px + 10 + col * colW, y + 16 + row * 12,
+                        dimColor);
+            }
+            y += 24 + ((locked.size() + 1) / 2) * 12 + 6;
+        }
+    }
+
+    private void renderCollectionCustom(DrawContext context) {
+        ModSnapshots.Collection col = ClientNetworking.state().collection();
+        int px = layout.panelX() + 6;
+        int pw = layout.panelWidth() - 12;
+        int y = layout.contentTop();
+        int dimColor = 0xFF888888;
+
+        context.drawTextWithShadow(this.textRenderer, "本赛季：" + col.seasonId, px, y, 0xFFFFFFFF);
+        y += 16;
+
+        // 本季彩蛋
+        int h1 = 24 + Math.max(1, col.seasonEggs.size()) * 14;
+        drawCard(context, px, y, pw, h1, CARD_BORDER);
+        context.drawTextWithShadow(this.textRenderer, "本季彩蛋", px + 6, y + 5, dimColor);
+        if (col.seasonEggs.isEmpty()) {
+            context.drawTextWithShadow(this.textRenderer, "暂无", px + 10, y + 18, dimColor);
+        } else {
+            int ly = y + 18;
+            for (String egg : col.seasonEggs) {
+                context.drawTextWithShadow(this.textRenderer, egg, px + 10, ly, 0xFFFFFFFF);
+                ly += 14;
+            }
+        }
+        y += h1 + 6;
+
+        // 历史留档
+        int h2 = 24 + Math.max(1, col.historySeasons.size()) * 14;
+        drawCard(context, px, y, pw, h2, CARD_BORDER);
+        context.drawTextWithShadow(this.textRenderer, "历史留档", px + 6, y + 5, dimColor);
+        context.drawTextWithShadow(this.textRenderer, "历史留档彩蛋：" + col.allEggs.size() + " 个",
+                px + 10, y + 18, 0xFFFFFFFF);
+        y += h2 + 6;
+
+        // 里程碑
+        int h3 = 24 + Math.max(1, col.milestones.size()) * 14;
+        drawCard(context, px, y, pw, h3, CARD_BORDER);
+        context.drawTextWithShadow(this.textRenderer, "里程碑", px + 6, y + 5, dimColor);
+        if (col.milestones.isEmpty()) {
+            context.drawTextWithShadow(this.textRenderer, "暂无", px + 10, y + 18, dimColor);
+        } else {
+            int ly = y + 18;
+            for (String m : col.milestones) {
+                context.drawTextWithShadow(this.textRenderer, m, px + 10, ly, 0xFFFFFFFF);
+                ly += 14;
+            }
+        }
+    }
+
+    /** 旧版行列表渲染（兜底用）。 */
+    private void renderRowList(DrawContext context) {
+        ModSnapshots.GuiStyle style = guiStyle();
+        int firstRow = page * layout.rowsPerPage();
+
+        for (int index = 0; index < visibleRowCount(); index++) {
+            Row row = rows.get(firstRow + index);
+            int rowTop = layout.rowY(index);
+            int rowBottom = rowTop + layout.rowHeight();
+
+            if (row.rowKey() != null && row.rowKey().equals(selectedRowKey)) {
+                int bodyRight = layout.actionButtonX() - 2;
+                context.fill(layout.panelX() + 2, rowTop, bodyRight, rowBottom, style.selectionDimArgb);
+                context.fill(layout.panelX() + 2, rowTop, bodyRight, rowTop + 1, style.selectionBorderColor);
+                context.fill(layout.panelX() + 2, rowBottom - 1, bodyRight, rowBottom, style.selectionBorderColor);
+                context.fill(layout.panelX() + 2, rowTop, layout.panelX() + 3, rowBottom, style.selectionBorderColor);
+                context.fill(bodyRight - 1, rowTop, bodyRight, rowBottom, style.selectionBorderColor);
+            }
+
+            context.drawTextWithShadow(this.textRenderer, row.text(),
+                    layout.panelX() + 4, rowTop + 2, GuiColors.TEXT);
+        }
+
+        context.drawTextWithShadow(this.textRenderer,
+                Text.translatable("haojing_battlepass.gui.page", page + 1, pageCount()),
+                layout.panelX() + layout.panelWidth() / 2 - 24, layout.footerY() + 4, GuiColors.TEXT_DIM);
     }
 
     private void buildHome(List<Row> built) {
