@@ -111,16 +111,19 @@ public class BattlePassScreen extends Screen {
         for (int index = 0; index < visibleRowCount(); index++) {
             Row row = rows.get(firstRow + index);
 
-            if (row.actionKey() != null) {
-                ButtonWidget action = ButtonWidget.builder(Text.translatable(row.actionKey()), widget -> {
-                    if (row.action() != null) {
-                        row.action().run();
-                    }
-                }).dimensions(layout.actionButtonX(), layout.rowY(index) - 2,
-                        layout.actionButtonWidth(), layout.rowHeight() - 2).build();
+            // 自定义卡片渲染的 tab 不添加旧按钮，避免重叠
+            if (tab > 5) {
+                if (row.actionKey() != null) {
+                    ButtonWidget action = ButtonWidget.builder(Text.translatable(row.actionKey()), widget -> {
+                        if (row.action() != null) {
+                            row.action().run();
+                        }
+                    }).dimensions(layout.actionButtonX(), layout.rowY(index) - 2,
+                            layout.actionButtonWidth(), layout.rowHeight() - 2).build();
 
-                action.active = row.enabled();
-                addDrawableChild(action);
+                    action.active = row.enabled();
+                    addDrawableChild(action);
+                }
             }
         }
 
@@ -673,19 +676,22 @@ public class BattlePassScreen extends Screen {
             int nameColor = limitReached ? dimColor : 0xFFFFFFFF;
             context.drawTextWithShadow(this.textRenderer, name, px + 10, ly, nameColor);
 
+            // 右侧区域：价格 + 限购 + 状态（从右往左排）
+            String btnText = limitReached ? "已售罄" : (affordable ? "购买" : "金币不足");
+            int btnColor = limitReached ? dimColor : (affordable ? 0xFF55AA55 : 0xFFAA4444);
+            int btnW = this.textRenderer.getWidth(btnText);
+            context.drawTextWithShadow(this.textRenderer, btnText, px + pw - btnW - 10, ly, btnColor);
+
             String priceStr = item.price + " 京币";
             int priceW = this.textRenderer.getWidth(priceStr);
-            context.drawTextWithShadow(this.textRenderer, priceStr, px + pw - priceW - 80, ly,
+            context.drawTextWithShadow(this.textRenderer, priceStr, px + pw - btnW - 20 - priceW, ly,
                     limitReached ? dimColor : 0xFFFFDD44);
 
             if (item.limitPerPlayer > 0) {
-                String limitStr = "限购 " + item.purchased + "/" + item.limitPerPlayer;
-                context.drawTextWithShadow(this.textRenderer, limitStr, px + pw - priceW - 70, ly, dimColor);
+                String limitStr = "限购" + item.purchased + "/" + item.limitPerPlayer;
+                context.drawTextWithShadow(this.textRenderer, limitStr, px + 180, ly, dimColor);
             }
 
-            String btnText = limitReached ? "已售罄" : (affordable ? "购买" : "金币不足");
-            int btnColor = limitReached ? dimColor : (affordable ? 0xFF55AA55 : 0xFFAA4444);
-            context.drawTextWithShadow(this.textRenderer, btnText, px + pw - 50, ly, btnColor);
             ly += 24;
         }
     }
@@ -713,7 +719,8 @@ public class BattlePassScreen extends Screen {
         if (!titles.equipped.isEmpty() && titles.definitions != null) {
             for (ModSnapshots.TitleDef def : titles.definitions) {
                 if (def.id.equals(titles.equipped)) {
-                    String eqName = (def.name == null || def.name.isEmpty()) ? def.id : def.name;
+                    String eqName = (def.name != null && !def.name.isEmpty())
+                            ? def.name : titleText(def.id).getString();
                     drawCard(context, px, y, pw, 28, 0xFF55AA55);
                     context.drawTextWithShadow(this.textRenderer, "当前装备", px + 6, y + 5, dimColor);
                     context.drawTextWithShadow(this.textRenderer, eqName, px + 6, y + 15, 0xFFFFDD44);
@@ -737,34 +744,37 @@ public class BattlePassScreen extends Screen {
         }
 
         if (!owned.isEmpty()) {
-            drawCard(context, px, y, pw, 24 + ((owned.size() + 1) / 2) * 14, CARD_BORDER);
+            int rows = (owned.size() + 1) / 2;
+            drawCard(context, px, y, pw, 24 + rows * 14, CARD_BORDER);
             context.drawTextWithShadow(this.textRenderer, "已拥有", px + 6, y + 5, dimColor);
-            int ly = y + 18;
             int colW = (pw - 16) / 2;
             for (int i = 0; i < owned.size(); i++) {
                 ModSnapshots.TitleDef def = owned.get(i);
-                String name = (def.name == null || def.name.isEmpty()) ? def.id : def.name;
+                String name = (def.name != null && !def.name.isEmpty())
+                        ? def.name : titleText(def.id).getString();
                 int col = i % 2;
                 int row = i / 2;
                 context.drawTextWithShadow(this.textRenderer, name, px + 10 + col * colW, y + 16 + row * 12,
                         0xFFFFFFFF);
             }
-            y += 24 + ((owned.size() + 1) / 2) * 14 + 6;
+            y += 24 + rows * 14 + 6;
         }
 
         if (!locked.isEmpty()) {
-            drawCard(context, px, y, pw, 24 + ((locked.size() + 1) / 2) * 12, 0xFF444444);
+            int rows = (locked.size() + 1) / 2;
+            drawCard(context, px, y, pw, 24 + rows * 12, 0xFF444444);
             context.drawTextWithShadow(this.textRenderer, "未拥有", px + 6, y + 5, dimColor);
             for (int i = 0; i < locked.size(); i++) {
                 ModSnapshots.TitleDef def = locked.get(i);
-                String name = (def.name == null || def.name.isEmpty()) ? def.id : def.name;
+                String name = (def.name != null && !def.name.isEmpty())
+                        ? def.name : titleText(def.id).getString();
                 int col = i % 2;
                 int row = i / 2;
                 int colW = (pw - 16) / 2;
                 context.drawTextWithShadow(this.textRenderer, name, px + 10 + col * colW, y + 16 + row * 12,
                         dimColor);
             }
-            y += 24 + ((locked.size() + 1) / 2) * 12 + 6;
+            y += 24 + rows * 12 + 6;
         }
     }
 
