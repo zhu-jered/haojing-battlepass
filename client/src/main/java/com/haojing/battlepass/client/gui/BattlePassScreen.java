@@ -220,6 +220,8 @@ public class BattlePassScreen extends Screen {
 
     /** 上次绘制社团文字时的像素包围盒 [x1, y1, x2, y2]；null 表示当前不可点。 */
     private int[] communityBounds;
+    private final java.util.List<int[]> titleClickBounds = new java.util.ArrayList<>();
+    private final java.util.List<String> titleClickIds = new java.util.ArrayList<>();
 
     /** 任务名称悬浮 Tooltip。 */
     private void renderTaskTooltip(DrawContext context, int mouseX, int mouseY) {
@@ -274,6 +276,18 @@ public class BattlePassScreen extends Screen {
                     && mouseY >= communityBounds[1] && mouseY <= communityBounds[3]) {
                 openCommunityUrl();
                 return true;
+            }
+
+            // 称号：点击已拥有的称号装备
+            if (tab == 4) {
+                for (int i = 0; i < titleClickBounds.size(); i++) {
+                    int[] b = titleClickBounds.get(i);
+                    if (mouseX >= b[0] && mouseX <= b[2] && mouseY >= b[1] && mouseY <= b[3]) {
+                        ClientNetworking.sendAction(NetActions.ClientAction.EQUIP_TITLE, titleClickIds.get(i));
+                        rebuild();
+                        return true;
+                    }
+                }
             }
 
             // 每日/每周：点击任务条目（非按钮区）切换选中。
@@ -741,10 +755,13 @@ public class BattlePassScreen extends Screen {
             }
         }
 
+        titleClickBounds.clear();
+        titleClickIds.clear();
+
         if (!owned.isEmpty()) {
             int rows = (owned.size() + 1) / 2;
             drawCard(context, px, y, pw, 24 + rows * 14, CARD_BORDER);
-            context.drawTextWithShadow(this.textRenderer, "已拥有", px + 6, y + 5, dimColor);
+            context.drawTextWithShadow(this.textRenderer, "已拥有（点击装备）", px + 6, y + 5, dimColor);
             int colW = (pw - 16) / 2;
             for (int i = 0; i < owned.size(); i++) {
                 ModSnapshots.TitleDef def = owned.get(i);
@@ -752,8 +769,17 @@ public class BattlePassScreen extends Screen {
                         ? def.name : titleText(def.id).getString();
                 int col = i % 2;
                 int row = i / 2;
-                context.drawTextWithShadow(this.textRenderer, name, px + 10 + col * colW, y + 16 + row * 12,
-                        0xFFFFFFFF);
+                int tx = px + 10 + col * colW;
+                int ty = y + 16 + row * 12;
+                context.drawTextWithShadow(this.textRenderer, name, tx, ty, 0xFFFFFFFF);
+                titleClickBounds.add(new int[]{tx - 2, ty - 2, tx + colW - 10, ty + 12});
+                titleClickIds.add(def.id);
+
+                // 悬停 tooltip
+                if (mouseX >= tx - 2 && mouseX <= tx + colW - 10 && mouseY >= ty - 2 && mouseY <= ty + 12) {
+                    Text tip = titleTooltip(def, true, false);
+                    context.drawTooltip(this.textRenderer, java.util.List.of(tip), mouseX, mouseY);
+                }
             }
             y += 24 + rows * 14 + 6;
         }
