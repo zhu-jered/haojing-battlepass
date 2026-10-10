@@ -728,7 +728,7 @@ public class BattlePassScreen extends Screen {
 
         // 已装备卡片（不依赖 definitions 匹配）
         if (!titles.equipped.isEmpty()) {
-            String eqName = titles.equipped;
+            String eqName = titleText(titles.equipped).getString();
             if (titles.definitions != null) {
                 for (ModSnapshots.TitleDef def : titles.definitions) {
                     if (def.id.equals(titles.equipped) && def.name != null && !def.name.isEmpty()) {
