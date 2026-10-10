@@ -697,7 +697,7 @@ public class BattlePassScreen extends Screen {
         context.drawTextWithShadow(this.textRenderer, "切换", px + pw - sw - 10, y, 0xFFCCCCCC);
         y += 14;
 
-        // 已装备
+        // 已装备卡片
         if (!titles.equipped.isEmpty() && titles.definitions != null) {
             for (ModSnapshots.TitleDef def : titles.definitions) {
                 if (def.id.equals(titles.equipped)) {
@@ -706,19 +706,18 @@ public class BattlePassScreen extends Screen {
                     drawCard(context, px, y, pw, 28, 0xFF55AA55);
                     context.drawTextWithShadow(this.textRenderer, "当前装备", px + 6, y + 5, dimColor);
                     context.drawTextWithShadow(this.textRenderer, eqName, px + 6, y + 15, 0xFFFFDD44);
-                    int uw = this.textRenderer.getWidth("卸下");
-                    context.drawTextWithShadow(this.textRenderer, "卸下", px + pw - uw - 10, y + 10, 0xFFAA4444);
                     y += 34;
                     break;
                 }
             }
         }
 
-        // 已拥有
+        // 已拥有 / 未拥有
         java.util.List<ModSnapshots.TitleDef> owned = new java.util.ArrayList<>();
         java.util.List<ModSnapshots.TitleDef> locked = new java.util.ArrayList<>();
         if (titles.definitions != null) {
             for (ModSnapshots.TitleDef def : titles.definitions) {
+                if (def.id.equals(titles.equipped)) continue; // 已在装备卡片里
                 boolean un = titles.unlocked != null && titles.unlocked.contains(def.id);
                 if (un) owned.add(def);
                 else locked.add(def);
@@ -902,8 +901,8 @@ public class BattlePassScreen extends Screen {
             }).dimensions(px + pw - 50, y0 + 12, 44, 12).build();
             addDrawableChild(nameToggle);
 
-            // 已装备卸下
             int cy = y0 + 28;
+            // 已装备卸下按钮
             if (!titles.equipped.isEmpty() && titles.definitions != null) {
                 for (ModSnapshots.TitleDef def : titles.definitions) {
                     if (def.id.equals(titles.equipped)) {
@@ -912,17 +911,18 @@ public class BattlePassScreen extends Screen {
                             rebuild();
                         }).dimensions(px + pw - 50, cy + 8, 44, 12).build();
                         addDrawableChild(unequip);
+                        cy += 34;
                         break;
                     }
                 }
-                cy += 34;
             }
 
-            // 已拥有称号点击装备
+            // 已拥有称号：每个名称位置放一个透明可点击区域
             java.util.List<ModSnapshots.TitleDef> owned = new java.util.ArrayList<>();
             if (titles.definitions != null) {
                 for (ModSnapshots.TitleDef def : titles.definitions) {
-                    if (titles.unlocked != null && titles.unlocked.contains(def.id) && !def.id.equals(titles.equipped)) {
+                    if (def.id.equals(titles.equipped)) continue;
+                    if (titles.unlocked != null && titles.unlocked.contains(def.id)) {
                         owned.add(def);
                     }
                 }
@@ -934,12 +934,12 @@ public class BattlePassScreen extends Screen {
                     ModSnapshots.TitleDef def = owned.get(i);
                     int col = i % 2;
                     int row = i / 2;
-                    int bx = px + 10 + col * colW;
-                    int by = cy + 14 + row * 12;
-                    ButtonWidget equip = ButtonWidget.builder(Text.literal(" "), w -> {
+                    int bx = px + 8 + col * colW;
+                    int by = cy + 14 + row * 12 - 2;
+                    ButtonWidget equip = ButtonWidget.builder(Text.literal(""), w -> {
                         ClientNetworking.sendAction(NetActions.ClientAction.EQUIP_TITLE, def.id);
                         rebuild();
-                    }).dimensions(bx - 2, by - 2, colW - 10, 12).build();
+                    }).dimensions(bx, by, colW - 8, 12).build();
                     equip.active = true;
                     addDrawableChild(equip);
                 }
