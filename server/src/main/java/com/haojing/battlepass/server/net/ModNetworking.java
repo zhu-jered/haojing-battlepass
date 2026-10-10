@@ -183,6 +183,10 @@ public final class ModNetworking {
                 }
                 boolean rerolled = taskAssignmentService != null && taskAssignmentService.rerollGroup(player.getUuid(), arg);
                 reply(player, rerolled, rerolled ? "haojing_battlepass.action.reroll.ok" : "haojing_battlepass.action.reroll.fail");
+                if (rerolled) {
+                    syncService.markDirty(player.getUuid(), SyncChannels.TASKS);
+                    syncService.push(player, SyncChannels.TASKS);
+                }
                 break;
             }
             case CLAIM: {
@@ -214,7 +218,14 @@ public final class ModNetworking {
                 BattlePassService.ExemptCardOutcome exempt = battlePassService == null
                         ? BattlePassService.ExemptCardOutcome.NO_CARD
                         : battlePassService.useExemptCard(player.getUuid(), arg);
-                reply(player, exempt == BattlePassService.ExemptCardOutcome.OK, exemptKey(exempt));
+                boolean ok = exempt == BattlePassService.ExemptCardOutcome.OK;
+                reply(player, ok, exemptKey(exempt));
+                if (ok) {
+                    syncService.markDirty(player.getUuid(), SyncChannels.TASKS);
+                    syncService.markDirty(player.getUuid(), SyncChannels.PLAYER);
+                    syncService.push(player, SyncChannels.TASKS);
+                    syncService.push(player, SyncChannels.PLAYER);
+                }
                 break;
             }
             case CHOOSE_DAILY_GROUP: {
