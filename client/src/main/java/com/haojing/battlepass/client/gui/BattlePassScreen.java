@@ -85,7 +85,7 @@ public class BattlePassScreen extends Screen {
     @Override
     protected void init() {
         // 每次打开界面（以及每次窗口尺寸变化）都重建布局：这样 GUI 缩放怎么调都不会错位。
-        layout = PanelLayout.compute(this.width, this.height, 340, 240, 460, TAB_KEYS.length, 16);
+        layout = PanelLayout.compute(this.width, this.height, 480, 280, 520, TAB_KEYS.length, 16);
 
         // 每次打开界面都请求一次全量同步：这样"界面里的数字"一定是最新的。
         ClientNetworking.requestResync();
@@ -175,6 +175,8 @@ public class BattlePassScreen extends Screen {
                 context.drawCenteredTextWithShadow(this.textRenderer,
                         Text.translatable("haojing_battlepass.gui.waiting"),
                         layout.panelX() + layout.panelWidth() / 2, layout.contentTop() + 20, GuiColors.WAITING);
+            } else if (tab == 0) {
+                renderHomeCustom(context);
             } else {
                 int firstRow = page * layout.rowsPerPage();
 
@@ -418,6 +420,162 @@ public class BattlePassScreen extends Screen {
 
         // 内容变少时把页码夹回范围内，避免停在空白页。
         page = Math.min(page, pageCount() - 1);
+    }
+
+    private static final int CARD_BG = 0x60202020;
+    private static final int CARD_BORDER = 0xFF555555;
+    private static final int CARD_BORDER_GOLD = 0xFFFFAA00;
+    private static final int XP_BAR_BG = 0xFF303030;
+    private static final int XP_BAR_FILL = 0xFF44AA44;
+
+    /** 首页自定义卡片式渲染（不走 Row 列表）。 */
+    private void renderHomeCustom(DrawContext context) {
+        ModSnapshots.Player p = ClientNetworking.state().player();
+        int px = layout.panelX() + 6;
+        int pw = layout.panelWidth() - 12;
+        int y = layout.contentTop();
+        int textColor = 0xFFCCCCCC;
+        int dimColor = 0xFF888888;
+
+        // 欢迎语
+        String playerName = this.client != null && this.client.player != null
+                ? this.client.player.getName().getString() : "";
+        String template = p.guiStyle.welcomeText == null || p.guiStyle.welcomeText.isBlank()
+                ? "欢迎您，{player}" : p.guiStyle.welcomeText;
+        String labelColor = p.guiStyle.welcomeColor == null ? "§7" : p.guiStyle.welcomeColor;
+        String nameColor = p.guiStyle.welcomePlayerColor == null ? "§f" : p.guiStyle.welcomePlayerColor;
+        String[] parts = template.split("\\{player}", 2);
+        MutableText welcome = Text.literal(labelColor + parts[0]);
+        welcome.append(Text.literal(nameColor + playerName));
+        if (parts.length > 1 && !parts[1].isEmpty()) {
+            welcome.append(Text.literal(labelColor + parts[1]));
+        }
+        context.drawTextWithShadow(this.textRenderer, welcome, px, y, 0xFFFFFFFF);
+        y += 14;
+
+        // ── Hero 卡片：等级 + 经验条 ──
+        int heroH = 44;
+        context.fill(px, y, px + pw, y + heroH, CARD_BG);
+        context.fill(px, y, px + pw, y + 1, CARD_BORDER);
+        context.fill(px, y + heroH - 1, px + pw, y + heroH, CARD_BORDER);
+        context.fill(px, y, px + 1, y + heroH, CARD_BORDER);
+        context.fill(px + pw - 1, y, px + pw, y + heroH, CARD_BORDER);
+
+        // 大号等级数字
+        String lvText = "Lv." + p.level;
+        int lvW = this.textRenderer.getWidth(lvText);
+        context.drawTextWithShadow(this.textRenderer, lvText, px + 8, y + 6, 0xFFFFDD44);
+        // 赛季名在右边
+        String seasonText = p.themeName + " (" + p.seasonId + ")";
+        int sw = this.textRenderer.getWidth(seasonText);
+        context.drawTextWithShadow(this.textRenderer, seasonText, px + pw - sw - 8, y + 6, dimColor);
+
+        // 经验条
+        int barX = px + 8;
+        int barW = pw - 16;
+        int barY = y + 22;
+        int barH = 6;
+        context.fill(barX, barY, barX + barW, barY + barH, XP_BAR_BG);
+        if (p.xpForNext > 0) {
+            int fillW = Math.max(2, Math.min(barW, barW * p.xp / p.xpForNext));
+            context.fill(barX, barY, barX + fillW, barY + barH, XP_BAR_FILL);
+        }
+        // 经验数字
+        String xpText = p.xp + " / " + p.xpForNext + " 经验";
+        context.drawTextWithShadow(this.textRenderer, xpText, barX, barY + 8, textColor);
+        // 今日剩余
+        String dailyText = p.remainingDailyXp < 0 ? "今日经验不限" : "今日剩余可获取：" + p.remainingDailyXp;
+        int dw = this.textRenderer.getWidth(dailyText);
+        context.drawTextWithShadow(this.textRenderer, dailyText, px + pw - dw - 8, barY + 8, dimColor);
+
+        y += heroH + 8;
+
+        // ── 事件卡片 ──
+        int evtH = p.eventActive ? 50 : 28;
+        context.fill(px, y, px + pw, y + evtH, CARD_BG);
+        int evtBorder = p.eventActive ? CARD_BORDER_GOLD : CARD_BORDER;
+        context.fill(px, y, px + pw, y + 1, evtBorder);
+        context.fill(px, y + evtH - 1, px + pw, y + evtH, evtBorder);
+        context.fill(px, y, px + 1, y + evtH, evtBorder);
+        context.fill(px + pw - 1, y, px + pw, y + evtH, evtBorder);
+
+        context.drawTextWithShadow(this.textRenderer, "◆ 进行中的事件", px + 6, y + 4,
+                p.eventActive ? 0xFFFFCC44 : dimColor);
+
+        if (p.eventActive) {
+            String remain = formatRemaining(p.eventRemainingSeconds);
+            context.drawTextWithShadow(this.textRenderer,
+                    "§6" + p.eventName + " §7(" + p.eventTypeLabel + ")  剩余 §e" + remain,
+                    px + 6, y + 16, 0xFFFFFFFF);
+
+            String progressText;
+            if ("ONLINE".equals(p.eventParticipationType)) {
+                progressText = p.eventPlayerParticipated ? "§a✓ 你已参与" : "§e在线即可参与";
+            } else {
+                String actionLabel = switch (p.eventParticipationType == null ? "" : p.eventParticipationType) {
+                    case "KILL_ENTITY" -> "击杀";
+                    case "TRADE" -> "交易";
+                    default -> "参与";
+                };
+                int prog = Math.min(p.eventPlayerProgress, p.eventParticipationTarget);
+                progressText = (p.eventPlayerParticipated ? "§a✓ 已参与  " : "")
+                        + "§7" + actionLabel + "进度：§f" + prog + "§7/§f" + p.eventParticipationTarget;
+            }
+            context.drawTextWithShadow(this.textRenderer, progressText, px + 6, y + 28, textColor);
+
+            if (p.eventRewardSummary != null && !p.eventRewardSummary.isEmpty()) {
+                context.drawTextWithShadow(this.textRenderer,
+                        "§7奖励：§f" + p.eventRewardSummary, px + 6, y + 38, dimColor);
+            }
+        } else {
+            String idleText;
+            if (p.eventCooldownSeconds > 60) {
+                long mins = p.eventCooldownSeconds / 60;
+                idleText = "§7当前无事件，约 §e" + mins + " §7分钟后触发";
+            } else {
+                idleText = "§7当前无事件，即将触发...";
+            }
+            context.drawTextWithShadow(this.textRenderer, idleText, px + 6, y + 16, dimColor);
+        }
+
+        y += evtH + 8;
+
+        // ── 双列：资源 + 分支 ──
+        int colW = (pw - 8) / 2;
+        int colH = 44;
+        // 左列：资源
+        context.fill(px, y, px + colW, y + colH, CARD_BG);
+        context.fill(px, y, px + colW, y + 1, CARD_BORDER);
+        context.fill(px, y + colH - 1, px + colW, y + colH, CARD_BORDER);
+        context.fill(px, y, px + 1, y + colH, CARD_BORDER);
+        context.fill(px + colW - 1, y, px + colW, y + colH, CARD_BORDER);
+        context.drawTextWithShadow(this.textRenderer, "资源", px + 6, y + 4, dimColor);
+        context.drawTextWithShadow(this.textRenderer, "§e京币：§f" + p.starCoin, px + 6, y + 16, 0xFFFFFFFF);
+        context.drawTextWithShadow(this.textRenderer, "§b任务卡：§f" + p.exemptCards + " §7张", px + 6, y + 28, textColor);
+
+        // 右列：分支
+        int rx = px + colW + 8;
+        context.fill(rx, y, rx + colW, y + colH, CARD_BG);
+        context.fill(rx, y, rx + colW, y + 1, CARD_BORDER);
+        context.fill(rx, y + colH - 1, rx + colW, y + colH, CARD_BORDER);
+        context.fill(rx, y, rx + 1, y + colH, CARD_BORDER);
+        context.fill(rx + colW - 1, y, rx + colW, y + colH, CARD_BORDER);
+        context.drawTextWithShadow(this.textRenderer, "分支", rx + 6, y + 4, dimColor);
+        String branchKey = "haojing_battlepass.branch." + p.branch.toLowerCase(java.util.Locale.ROOT);
+        Text branchText = "NONE".equals(p.branch)
+                ? Text.translatable("haojing_battlepass.gui.home.branch_none")
+                : Text.translatableWithFallback(branchKey, p.branch);
+        context.drawTextWithShadow(this.textRenderer, branchText, rx + 6, y + 16, 0xFFFFFFFF);
+        String serverText = "服务器：正常";
+        context.drawTextWithShadow(this.textRenderer, serverText, rx + 6, y + 28, textColor);
+
+        // 分支选择提示（如果需要选分支）
+        if (p.branchPrompt) {
+            y += colH + 6;
+            context.drawTextWithShadow(this.textRenderer,
+                    "§e▶ " + Text.translatable("haojing_battlepass.gui.home.branch_prompt").getString(),
+                    px, y, 0xFFFFFF55);
+        }
     }
 
     private void buildHome(List<Row> built) {
