@@ -657,13 +657,11 @@ public class BattlePassScreen extends Screen {
             int nameColor = limitReached ? dimColor : 0xFFFFFFFF;
             context.drawTextWithShadow(this.textRenderer, name, px + 10, ly, nameColor);
 
-            // 右侧区域：按钮最右，价格在按钮左边，限购在中间
-            String btnText = limitReached ? "已售罄" : (affordable ? "购买" : "京币不足");
+            // 按钮占位宽度（与 addCustomButtons 里一致）
+            String btnText = limitReached ? "已售罄" : "购买";
             int btnW = this.textRenderer.getWidth(btnText) + 8;
             int btnRight = px + pw - 10;
             int btnLeft = btnRight - btnW;
-            int btnColor = limitReached ? dimColor : (affordable ? 0xFF55AA55 : 0xFFAA4444);
-            context.drawTextWithShadow(this.textRenderer, btnText, btnLeft, ly, btnColor);
 
             String priceStr = item.price + " 京币";
             int priceW = this.textRenderer.getWidth(priceStr);
