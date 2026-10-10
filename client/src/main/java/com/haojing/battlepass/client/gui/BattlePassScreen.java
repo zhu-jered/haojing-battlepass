@@ -671,16 +671,21 @@ public class BattlePassScreen extends Screen {
 
     /** 画进度条。 */
     private void drawMiniButton(DrawContext context, int x, int y, int w, int h, String text, boolean enabled) {
-        int bg = enabled ? 0xFF666666 : 0xFF444444;
+        // 原版 MC 按钮样式
+        int bg = enabled ? 0xFF8B8B8B : 0xFF5A5A5A;
         context.fill(x, y, x + w, y + h, bg);
-        context.fill(x, y, x + w, y + 1, 0xFFAAAAAA);
-        context.fill(x, y + h - 1, x + w, y + h, 0xFF333333);
-        context.fill(x, y, x + 1, y + h, 0xFFAAAAAA);
-        context.fill(x + w - 1, y, x + w, y + h, 0xFF333333);
+        // 上/左亮边
+        context.fill(x, y, x + w, y + 1, enabled ? 0xFFFFFFFF : 0xFFAAAAAA);
+        context.fill(x, y, x + 1, y + h, enabled ? 0xFFFFFFFF : 0xFFAAAAAA);
+        // 下/右暗边
+        context.fill(x, y + h - 1, x + w, y + h, 0xFF3F3F3F);
+        context.fill(x + w - 1, y, x + w, y + h, 0xFF3F3F3F);
+        // 内凹阴影
+        context.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, 0xFF6F6F6F);
         int tw = this.textRenderer.getWidth(text);
         int tx = x + (w - tw) / 2;
         int ty = y + (h - 8) / 2;
-        int color = enabled ? 0xFFFFFFFF : 0xFF888888;
+        int color = enabled ? 0xFFFFFFFF : 0xFFAAAAAA;
         context.drawTextWithShadow(this.textRenderer, text, tx, ty, color);
     }
 
