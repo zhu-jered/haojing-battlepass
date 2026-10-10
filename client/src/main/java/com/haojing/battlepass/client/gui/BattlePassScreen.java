@@ -163,7 +163,7 @@ public class BattlePassScreen extends Screen {
                         layout.panelX() + layout.panelWidth() / 2, layout.contentTop() + 20, GuiColors.WAITING);
             } else {
                 switch (tab) {
-                    case 0 -> renderHomeCustom(context);
+                    case 0 -> renderHomeCustom(context, mouseX, mouseY);
                     case 1 -> renderDailyCustom(context, mouseX, mouseY);
                     case 2 -> renderWeeklyCustom(context, mouseX, mouseY);
                     case 3 -> renderShopCustom(context, mouseX, mouseY);
@@ -401,7 +401,7 @@ public class BattlePassScreen extends Screen {
     private static final int XP_BAR_FILL = 0xFF44AA44;
 
     /** 首页自定义卡片式渲染（不走 Row 列表）。 */
-    private void renderHomeCustom(DrawContext context) {
+    private void renderHomeCustom(DrawContext context, int mouseX, int mouseY) {
         ModSnapshots.Player p = ClientNetworking.state().player();
         int px = layout.panelX() + 6;
         int pw = layout.panelWidth() - 12;
@@ -482,9 +482,15 @@ public class BattlePassScreen extends Screen {
             context.fill(axisLeft, lineY, axisRight, lineY + 1, lineColor);
 
             // 每个等级节点
+            int hoverLv = -1;
             for (int lv = 1; lv <= maxLv; lv++) {
                 float frac = (maxLv <= 1) ? 0 : (float) (lv - 1) / (maxLv - 1);
                 int nx = axisLeft + Math.round(frac * axisW);
+
+                // 悬停检测
+                if (Math.abs(mouseX - nx) <= 6 && mouseY >= y + 4 && mouseY <= y + axisH - 4) {
+                    hoverLv = lv;
+                }
 
                 int nodeColor;
                 if (lv < p.level) {
@@ -514,6 +520,19 @@ public class BattlePassScreen extends Screen {
                     int rc = safeColor(p.guiStyle.levelAxisReward, 0xFFFFAA00);
                     context.drawTextWithShadow(this.textRenderer, reward, nx - rw / 2, ry, rc);
                 }
+            }
+
+            // 悬停 tooltip
+            if (hoverLv > 0) {
+                String reward = (p.levelRewards != null && p.levelRewards.containsKey(hoverLv))
+                        ? p.levelRewards.get(hoverLv) : "无奖励";
+                String status = hoverLv < p.level ? "§a已达成"
+                        : hoverLv == p.level ? "§e当前等级" : "§8未解锁";
+                context.drawTooltip(this.textRenderer,
+                        java.util.List.of(
+                                Text.literal("§fLv." + hoverLv + "  " + status),
+                                Text.literal("§7奖励：§6" + reward)),
+                        mouseX, mouseY);
             }
 
             y += axisH + 8;
@@ -974,15 +993,19 @@ public class BattlePassScreen extends Screen {
 
                 if (isChosen) {
                     int ly = cy + 20 + lines.size() * 22 + 4;
+                    ModSnapshots.Player self = ClientNetworking.state().player();
                     ButtonWidget reroll = ButtonWidget.builder(Text.literal("刷新"), w -> {
                         ClientNetworking.sendAction(NetActions.ClientAction.REROLL, group);
                         rebuild();
                     }).dimensions(px + 10, ly, 44, 12).build();
                     addDrawableChild(reroll);
-                    ButtonWidget exempt = ButtonWidget.builder(Text.literal("跳过"), w -> {
+                    boolean hasCards = self.exemptCards > 0;
+                    ButtonWidget exempt = ButtonWidget.builder(
+                            Text.literal(hasCards ? "跳过" : "跳过(无卡)"), w -> {
                         ClientNetworking.sendAction(NetActions.ClientAction.EXEMPT, group);
                         rebuild();
-                    }).dimensions(px + 60, ly, 44, 12).build();
+                    }).dimensions(px + 60, ly, 52, 12).build();
+                    exempt.active = hasCards;
                     addDrawableChild(exempt);
                 }
                 cy += cardH + 6;
