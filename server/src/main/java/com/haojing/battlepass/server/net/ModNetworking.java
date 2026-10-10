@@ -19,8 +19,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.scoreboard.Scoreboard;
-import net.minecraft.scoreboard.Team;
 import net.minecraft.text.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,8 +86,6 @@ public final class ModNetworking {
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             syncService.syncNow(handler.player);
-            // 恢复头顶称号（计分板队伍）
-            updateNametagPrefix(server, handler.player);
             // 把该玩家的当前称号广播给全服；同时把其他在线玩家的称号推给该玩家。
             try {
                 String ownTitle = dataManager == null ? ""
@@ -388,59 +384,7 @@ public final class ModNetworking {
         }
 
         dataManager.markGlobalDirty(player.getUuid());
-        updateNametagPrefix(player.getCommandSource().getServer(), player);
         return true;
-    }
-
-    /**
-     * 用计分板队伍给玩家头顶加称号前缀（不需要客户端 Mixin，原版渲染）。
-     * 每个玩家一个队伍 hb_<名字>，前缀设为彩色称号文本。
-     */
-    public void updateNametagPrefix(MinecraftServer server, ServerPlayerEntity player) {
-        try {
-            if (server == null) return;
-
-            var global = dataManager.global(player.getUuid());
-            String titleId = global == null || global.equippedTitle == null ? "" : global.equippedTitle;
-            String playerName = player.getName().getString();
-
-            Scoreboard scoreboard = server.getScoreboard();
-            String teamName = "hb_" + playerName;
-            if (teamName.length() > 16) teamName = teamName.substring(0, 16);
-
-            Team team = scoreboard.getTeam(teamName);
-            if (team == null) {
-                team = scoreboard.addTeam(teamName);
-            }
-            if (team == null) return;
-
-            // 用命令方式设置队伍前缀，避免 API 映射问题
-            if (!titleId.isEmpty()) {
-                var titleMgr = com.haojing.battlepass.server.HaoJingBattlePassServer.titles();
-                if (titleMgr != null) {
-                    var def = titleMgr.byId(titleId);
-                    if (def != null) {
-                        String displayName = def.name == null || def.name.isEmpty() ? titleId : def.name;
-                        String prefix = (def.wrapPrefix == null ? "【" : def.wrapPrefix)
-                                + displayName
-                                + (def.wrapSuffix == null ? "】" : def.wrapSuffix);
-                        String color = def.color == null ? "§f" : def.color;
-                        // 创建/确保队伍存在并设置前缀
-                        server.getCommandManager().getDispatcher().execute(
-                            "team add " + teamName, server.getCommandSource());
-                        String prefixJson = Text.literal(color + prefix + "§r").getString();
-                        server.getCommandManager().getDispatcher().execute(
-                            "team modify " + teamName + " prefix " + prefixJson, server.getCommandSource());
-                        server.getCommandManager().getDispatcher().execute(
-                            "team join " + teamName + " " + playerName, server.getCommandSource());
-                    }
-                }
-            } else {
-                server.getCommandManager().getDispatcher().execute(
-                    "team leave " + playerName, server.getCommandSource());
-            }
-        } catch (Throwable ignored) {
-        }
     }
 
     private static void broadcastToAll(MinecraftServer server, String uuid, String titleId) {
