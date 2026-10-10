@@ -128,6 +128,33 @@ public final class SnapshotFactory {
             snapshot.rerollLimit = config.dailyRerollLimit;
             snapshot.xpForNext = LevelCurve.xpForLevel(config, season.level);
             applyGuiStyle(snapshot.guiStyle, config.gui);
+
+            // 等级轨道奖励摘要
+            snapshot.levelRewards.clear();
+            if (levelRewardManager != null && levelRewardManager.table() != null) {
+                int maxLv = config.maxLevel;
+                for (int lv = 1; lv <= maxLv; lv++) {
+                    java.util.List<com.haojing.battlepass.common.data.Reward> rewards =
+                            levelRewardManager.table().rewardsFor(lv, null);
+                    if (rewards == null || rewards.isEmpty()) continue;
+                    StringBuilder sb = new StringBuilder();
+                    for (com.haojing.battlepass.common.data.Reward r : rewards) {
+                        if (sb.length() > 0) sb.append(" ");
+                        com.haojing.battlepass.common.data.RewardType rt = r.typeOrNull();
+                        if (rt == null) continue;
+                        if (rt == com.haojing.battlepass.common.data.RewardType.TITLE) {
+                            sb.append("称号");
+                        } else if (rt == com.haojing.battlepass.common.data.RewardType.STAR_COIN) {
+                            sb.append(r.amount).append("京币");
+                        } else if (rt == com.haojing.battlepass.common.data.RewardType.EXEMPT_CARD) {
+                            sb.append("任务卡");
+                        } else {
+                            sb.append(rt);
+                        }
+                    }
+                    snapshot.levelRewards.put(lv, sb.toString());
+                }
+            }
         }
 
         snapshot.level = season.level;
@@ -432,6 +459,13 @@ public final class SnapshotFactory {
                 ? "欢迎您，{player}" : cfg.welcomeText;
         out.welcomeColor = com.haojing.battlepass.common.gui.GuiColors.normalizeSection(cfg.welcomeColor, "§7");
         out.welcomePlayerColor = com.haojing.battlepass.common.gui.GuiColors.normalizeSection(cfg.welcomePlayerColor, "§f");
+
+        out.showLevelAxis = cfg.showLevelAxis;
+        out.levelAxisCompleted = com.haojing.battlepass.common.gui.GuiColors.normalizeSection(cfg.levelAxisCompleted, "§a");
+        out.levelAxisCurrent = com.haojing.battlepass.common.gui.GuiColors.normalizeSection(cfg.levelAxisCurrent, "§e");
+        out.levelAxisLocked = com.haojing.battlepass.common.gui.GuiColors.normalizeSection(cfg.levelAxisLocked, "§8");
+        out.levelAxisLine = com.haojing.battlepass.common.gui.GuiColors.normalizeSection(cfg.levelAxisLine, "§7");
+        out.levelAxisReward = com.haojing.battlepass.common.gui.GuiColors.normalizeSection(cfg.levelAxisReward, "§6");
 
         out.shopGroupColors.clear();
 

@@ -462,6 +462,63 @@ public class BattlePassScreen extends Screen {
 
         y += heroH + 8;
 
+        // ── 等级轨道（通行证样式） ──
+        if (p.guiStyle.showLevelAxis) {
+            int axisH = 36;
+            context.fill(px, y, px + pw, y + axisH, CARD_BG);
+            context.fill(px, y, px + pw, y + 1, CARD_BORDER);
+            context.fill(px, y + axisH - 1, px + pw, y + axisH, CARD_BORDER);
+            context.fill(px, y, px + 1, y + axisH, CARD_BORDER);
+            context.fill(px + pw - 1, y, px + pw, y + axisH, CARD_BORDER);
+
+            int lineY = y + 18;
+            int axisLeft = px + 12;
+            int axisRight = px + pw - 12;
+            int axisW = axisRight - axisLeft;
+            int maxLv = p.maxLevel;
+
+            // 连接线
+            int lineColor = safeColor(p.guiStyle.levelAxisLine, 0xFF888888);
+            context.fill(axisLeft, lineY, axisRight, lineY + 1, lineColor);
+
+            // 每个等级节点
+            for (int lv = 1; lv <= maxLv; lv++) {
+                float frac = (maxLv <= 1) ? 0 : (float) (lv - 1) / (maxLv - 1);
+                int nx = axisLeft + Math.round(frac * axisW);
+
+                int nodeColor;
+                if (lv < p.level) {
+                    nodeColor = safeColor(p.guiStyle.levelAxisCompleted, 0xFF55AA55);
+                } else if (lv == p.level) {
+                    nodeColor = safeColor(p.guiStyle.levelAxisCurrent, 0xFFFFFF55);
+                } else {
+                    nodeColor = safeColor(p.guiStyle.levelAxisLocked, 0xFF555555);
+                }
+
+                // 节点圆点
+                int r = (lv == p.level) ? 3 : 2;
+                context.fill(nx - r, lineY - r, nx + r, lineY + r, nodeColor);
+
+                // 等级数字（每5级标一个 + 当前级）
+                if (lv == 1 || lv == maxLv || lv % 5 == 0 || lv == p.level) {
+                    String label = String.valueOf(lv);
+                    int lw = this.textRenderer.getWidth(label);
+                    context.drawTextWithShadow(this.textRenderer, label, nx - lw / 2, lineY + 5, nodeColor);
+                }
+
+                // 奖励标注（有奖励的等级）
+                if (p.levelRewards != null && p.levelRewards.containsKey(lv)) {
+                    String reward = p.levelRewards.get(lv);
+                    int rw = this.textRenderer.getWidth(reward);
+                    int ry = (lv == p.level) ? lineY - 12 : lineY + 15;
+                    int rc = safeColor(p.guiStyle.levelAxisReward, 0xFFFFAA00);
+                    context.drawTextWithShadow(this.textRenderer, reward, nx - rw / 2, ry, rc);
+                }
+            }
+
+            y += axisH + 8;
+        }
+
         // ── 事件卡片 ──
         int evtH = p.eventActive ? 50 : 28;
         context.fill(px, y, px + pw, y + evtH, CARD_BG);
@@ -574,6 +631,11 @@ public class BattlePassScreen extends Screen {
     }
 
     /** 画进度条。 */
+    private int safeColor(String sectionCode, int fallback) {
+        Integer c = GuiColors.parseSectionColor(sectionCode);
+        return c == null ? fallback : (0xFF000000 | c);
+    }
+
     private void drawProgressBar(DrawContext context, int x, int y, int w, int h, int progress, int target) {
         context.fill(x, y, x + w, y + h, 0xFF303030);
         if (target > 0) {

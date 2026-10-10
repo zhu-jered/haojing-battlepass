@@ -49,6 +49,9 @@ public final class ModSnapshots {
         /** GUI 视觉配置（颜色、社团链接等）。字段自带默认值，老客户端缺字段也不崩。 */
         public GuiStyle guiStyle = new GuiStyle();
 
+        /** 等级轨道：每级奖励摘要（level → 简短文字），无奖励的等级不在此表。 */
+        public Map<Integer, String> levelRewards = new HashMap<>();
+
         /** 客户端开关：是否在聊天中显示称号前缀（服务端持久化，仅影响自己的渲染/广播）。 */
         public boolean chatTitleVisible = true;
 
@@ -139,6 +142,16 @@ public final class ModSnapshots {
 
         /** 欢迎语中玩家名颜色代码（形如 "§f"）。 */
         public String welcomePlayerColor = "§f";
+
+        /** 是否显示等级轨道。 */
+        public boolean showLevelAxis = true;
+
+        /** 等级轨道颜色代码（§?）。 */
+        public String levelAxisCompleted = "§a";
+        public String levelAxisCurrent = "§e";
+        public String levelAxisLocked = "§8";
+        public String levelAxisLine = "§7";
+        public String levelAxisReward = "§6";
     }
 
     /** 任务快照：三组每日 + 每周列表。 */

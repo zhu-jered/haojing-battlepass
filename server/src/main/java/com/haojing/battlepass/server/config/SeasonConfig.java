@@ -68,6 +68,12 @@ public class SeasonConfig {
     /** 每级所需经验的递增量（见 {@link #xpPerLevelBase}）。 */
     public int xpPerLevelStep = 10;
 
+    /**
+     * 逐级经验覆盖。key 为等级（1~maxLevel-1），value 为该级升到下一级所需经验。
+     * 未配置的等级继续使用 {@link #xpPerLevelBase} + {@link #xpPerLevelStep} 公式。
+     */
+    public java.util.Map<Integer, Integer> xpOverrides = new java.util.TreeMap<>();
+
     /** 每升 1 级发放的星币数。需求文档 §4：每升 1 级 +10 星币。 */
     public int starCoinPerLevel = 10;
 
@@ -181,5 +187,23 @@ public class SeasonConfig {
 
         /** 欢迎语中玩家名颜色（§ 代码）。默认 §f（白色）。 */
         public String welcomePlayerColor = "§f";
+
+        /** 是否在首页显示等级轨道（通行证样式）。默认 true。 */
+        public boolean showLevelAxis = true;
+
+        /** 等级轨道：已完成节点颜色。默认 §a（绿）。 */
+        public String levelAxisCompleted = "§a";
+
+        /** 等级轨道：当前等级节点颜色。默认 §e（金）。 */
+        public String levelAxisCurrent = "§e";
+
+        /** 等级轨道：未解锁节点颜色。默认 §8（深灰）。 */
+        public String levelAxisLocked = "§8";
+
+        /** 等级轨道：连接线颜色。默认 §7（浅灰）。 */
+        public String levelAxisLine = "§7";
+
+        /** 等级轨道：奖励文字颜色。默认 §6（金）。 */
+        public String levelAxisReward = "§6";
     }
 }

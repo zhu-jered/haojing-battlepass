@@ -52,9 +52,16 @@ public final class LevelCurve {
         int step = config == null ? FALLBACK_STEP : config.xpPerLevelStep;
 
         if (base < 0 || step < 0) {
-            // 配置层已把负数修正为 0，这里再兜一层：负经验会让 while 循环的行为变得不可预测。
             base = FALLBACK_BASE;
             step = FALLBACK_STEP;
+        }
+
+        // 逐级覆盖优先
+        if (config != null && config.xpOverrides != null && config.xpOverrides.containsKey(level)) {
+            int override = config.xpOverrides.get(level);
+            if (override >= 0) {
+                return Math.min(Integer.MAX_VALUE, override);
+            }
         }
 
         long need = (long) base + (long) step * (level - 1L);
