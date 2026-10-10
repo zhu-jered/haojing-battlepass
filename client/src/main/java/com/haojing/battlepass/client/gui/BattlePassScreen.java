@@ -164,10 +164,10 @@ public class BattlePassScreen extends Screen {
             } else {
                 switch (tab) {
                     case 0 -> renderHomeCustom(context);
-                    case 1 -> renderDailyCustom(context);
-                    case 2 -> renderWeeklyCustom(context);
-                    case 3 -> renderShopCustom(context);
-                    case 4 -> renderTitlesCustom(context);
+                    case 1 -> renderDailyCustom(context, mouseX, mouseY);
+                    case 2 -> renderWeeklyCustom(context, mouseX, mouseY);
+                    case 3 -> renderShopCustom(context, mouseX, mouseY);
+                    case 4 -> renderTitlesCustom(context, mouseX, mouseY);
                     case 5 -> renderCollectionCustom(context);
                     default -> renderRowList(context);
                 }
@@ -555,7 +555,7 @@ public class BattlePassScreen extends Screen {
         }
     }
 
-    private void renderDailyCustom(DrawContext context) {
+    private void renderDailyCustom(DrawContext context, int mouseX, int mouseY) {
         ModSnapshots.Tasks tasks = ClientNetworking.state().tasks();
         int px = layout.panelX() + 6;
         int pw = layout.panelWidth() - 12;
@@ -593,6 +593,13 @@ public class BattlePassScreen extends Screen {
                 context.drawTextWithShadow(this.textRenderer, progressStr, px + pw - pw2 - 10, ly,
                         isLocked ? dimColor : 0xFFCCCCCC);
                 drawProgressBar(context, px + 10, ly + 12, pw - 20, 4, line.progress, line.target);
+
+                if (mouseX >= px + 6 && mouseX <= px + pw - 6 && mouseY >= ly && mouseY <= ly + 18) {
+                    Text tip = Text.translatableWithFallback("haojing_battlepass.task." + line.id + ".desc",
+                            line.desc == null ? "" : line.desc);
+                    context.drawTooltip(this.textRenderer, List.of(tip), mouseX, mouseY);
+                }
+
                 ly += 22;
             }
 
@@ -604,7 +611,7 @@ public class BattlePassScreen extends Screen {
         }
     }
 
-    private void renderWeeklyCustom(DrawContext context) {
+    private void renderWeeklyCustom(DrawContext context, int mouseX, int mouseY) {
         ModSnapshots.Tasks tasks = ClientNetworking.state().tasks();
         int px = layout.panelX() + 6;
         int pw = layout.panelWidth() - 12;
@@ -629,11 +636,19 @@ public class BattlePassScreen extends Screen {
             String progressStr = line.progress + "/" + line.target;
             context.drawTextWithShadow(this.textRenderer, progressStr, px + 10, ly + 12, 0xFFCCCCCC);
             drawProgressBar(context, px + 10, ly + 24, pw - 20, 5, line.progress, line.target);
+
+            // 悬停 tooltip
+            if (mouseX >= px + 6 && mouseX <= px + pw - 6 && mouseY >= ly && mouseY <= ly + 36) {
+                Text tip = Text.translatableWithFallback("haojing_battlepass.task." + line.id + ".desc",
+                        line.desc == null ? "" : line.desc);
+                context.drawTooltip(this.textRenderer, List.of(tip), mouseX, mouseY);
+            }
+
             ly += 48;
         }
     }
 
-    private void renderShopCustom(DrawContext context) {
+    private void renderShopCustom(DrawContext context, int mouseX, int mouseY) {
         ModSnapshots.Shop shop = ClientNetworking.state().shop();
         int px = layout.panelX() + 6;
         int pw = layout.panelWidth() - 12;
@@ -678,7 +693,7 @@ public class BattlePassScreen extends Screen {
         }
     }
 
-    private void renderTitlesCustom(DrawContext context) {
+    private void renderTitlesCustom(DrawContext context, int mouseX, int mouseY) {
         ModSnapshots.Titles titles = ClientNetworking.state().titles();
         ModSnapshots.Player self = ClientNetworking.state().player();
         int px = layout.panelX() + 6;
