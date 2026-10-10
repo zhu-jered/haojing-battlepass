@@ -6,62 +6,68 @@ import com.haojing.battlepass.common.gui.GuiColors;
 import com.haojing.battlepass.common.net.ModSnapshots;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.entity.EntityRenderer;
+import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.lang.reflect.Field;
 import java.util.UUID;
 
 /**
  * 在玩家头顶名称标签前注入装备称号。
  *
- * <p>1.21.11 把 {@code renderLabelIfPresent} 的签名改成接收 EntityRenderState 而非 Entity，
- * 因此这里拿不到实体引用。改用"原标签文本 = 玩家名"反查 PlayerListEntry 拿 UUID，
- * 再去 OnlineTitles 查该玩家当前称号。
- *
- * <p>隐身玩家、未加载区块玩家的标签由原版逻辑决定是否渲染，本 Mixin 只在原版决定
- * 要画标签时才把称号拼在前面。任何异常静默回退原标签。
+ * <p>1.21.11 的 renderLabelIfPresent 接收 EntityRenderState，标签文本存在 state 的某个字段里。
+ * 用反射找到该字段（name/label/displayName），在方法入口把称号拼到前面。
  */
 @Mixin(EntityRenderer.class)
 public abstract class EntityRendererMixin {
 
-    @ModifyVariable(method = "renderLabelIfPresent", at = @At("HEAD"), ordinal = 0, argsOnly = true)
-    private Text haojing$prependTitle(Text original) {
+    private static Field haojing$nameField;
+    private static boolean haojing$nameFieldSearched;
+
+    @Inject(method = "renderLabelIfPresent", at = @At("HEAD"))
+    private void haojing$prependTitle(EntityRenderState state, CallbackInfo ci) {
         try {
+            if (state == null) {
+                return;
+            }
+
+            Text original = haojing$extractName(state);
             if (original == null) {
-                return original;
+                return;
             }
 
             var snap = ClientNetworking.state().player();
             if (snap == null || !snap.nametagTitleVisible) {
-                return original;
+                return;
             }
 
             String name = original.getString();
             if (name == null || name.isBlank()) {
-                return original;
+                return;
             }
 
             MinecraftClient client = MinecraftClient.getInstance();
             var networkHandler = client.getNetworkHandler();
             if (networkHandler == null) {
-                return original;
+                return;
             }
 
-            // 用玩家名反查 UUID；非玩家实体（物品展示框等）查不到，直接返回原标签。
             var listEntry = networkHandler.getPlayerListEntry(name);
             if (listEntry == null) {
-                return original;
+                return;
             }
 
             UUID uuid = listEntry.getProfile().id();
             String titleId = OnlineTitles.titleOf(uuid);
             if (titleId == null || titleId.isEmpty()) {
-                return original;
+                return;
             }
 
             ModSnapshots.TitleDef def = null;
@@ -77,7 +83,7 @@ public abstract class EntityRendererMixin {
             }
 
             if (def == null) {
-                return original;
+                return;
             }
 
             String displayName = def.name == null || def.name.isEmpty()
@@ -93,9 +99,54 @@ public abstract class EntityRendererMixin {
                 title.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(argb)));
             }
 
-            return title.append(original);
+            haojing$setName(state, title.append(original));
         } catch (Throwable t) {
-            return original;
+            // 静默回退
         }
+    }
+
+    /** 在 EntityRenderState 上找 Text 类型的名称字段。 */
+    private static Text haojing$extractName(EntityRenderState state) throws Exception {
+        Field f = haojing$resolveField(state.getClass());
+        if (f == null) {
+            return null;
+        }
+        Object val = f.get(state);
+        return val instanceof Text ? (Text) val : null;
+    }
+
+    private static void haojing$setName(EntityRenderState state, Text value) throws Exception {
+        Field f = haojing$resolveField(state.getClass());
+        if (f != null) {
+            f.set(state, value);
+        }
+    }
+
+    private static Field haojing$resolveField(Class<?> cls) throws Exception {
+        if (haojing$nameFieldSearched) {
+            return haojing$nameField;
+        }
+        haojing$nameFieldSearched = true;
+        // 按常见名称找
+        String[] candidates = {"name", "label", "displayName", "labelText"};
+        for (String c : candidates) {
+            try {
+                Field f = cls.getField(c);
+                if (Text.class.isAssignableFrom(f.getType())) {
+                    haojing$nameField = f;
+                    return f;
+                }
+            } catch (NoSuchFieldException ignored) {
+            }
+        }
+        // 找不到公开字段，扫所有字段（包括私有）
+        for (Field f : cls.getDeclaredFields()) {
+            if (Text.class.isAssignableFrom(f.getType())) {
+                f.setAccessible(true);
+                haojing$nameField = f;
+                return f;
+            }
+        }
+        return null;
     }
 }

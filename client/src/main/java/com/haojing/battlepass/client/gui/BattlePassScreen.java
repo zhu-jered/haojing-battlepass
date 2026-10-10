@@ -426,7 +426,7 @@ public class BattlePassScreen extends Screen {
         // 顶部欢迎语
         String playerName = this.client != null && this.client.player != null
                 ? this.client.player.getName().getString() : "";
-        built.add(row(Text.literal("§e§l欢迎您，" + playerName + "§r")));
+        built.add(row(Text.literal("§7欢迎您，§f" + playerName)));
 
         // ── 随机事件区块 ──
         if (player.eventActive) {
