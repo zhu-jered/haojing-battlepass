@@ -5,8 +5,10 @@ import com.haojing.battlepass.client.net.OnlineTitles;
 import com.haojing.battlepass.common.gui.GuiColors;
 import com.haojing.battlepass.common.net.ModSnapshots;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.state.EntityRenderState;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -32,7 +34,8 @@ public abstract class EntityRendererMixin {
     private static boolean haojing$nameFieldSearched;
 
     @Inject(method = "renderLabelIfPresent", at = @At("HEAD"))
-    private void haojing$prependTitle(EntityRenderState state, CallbackInfo ci) {
+    private void haojing$prependTitle(EntityRenderState state, MatrixStack matrices,
+                                      VertexConsumerProvider consumers, int light, CallbackInfo ci) {
         try {
             if (state == null) {
                 return;
