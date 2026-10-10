@@ -512,6 +512,20 @@ public class BattlePassScreen extends Screen {
 
         y += evtH + 8;
 
+        // ── 长夜状态 ──
+        if (p.longNight) {
+            int lnH = 22;
+            context.fill(px, y, px + pw, y + lnH, CARD_BG);
+            context.fill(px, y, px + pw, y + 1, 0xFF6644AA);
+            context.fill(px, y + lnH - 1, px + pw, y + lnH, 0xFF6644AA);
+            context.fill(px, y, px + 1, y + lnH, 0xFF6644AA);
+            context.fill(px + pw - 1, y, px + pw, y + lnH, 0xFF6644AA);
+            context.drawTextWithShadow(this.textRenderer,
+                    "§5长夜降临 §7剩余 §d" + p.longNightMinutesRemaining + " 分钟 §7（经验获取减半）",
+                    px + 6, y + 6, 0xFFFFFFFF);
+            y += lnH + 8;
+        }
+
         // ── 双列：资源 + 分支 ──
         int colW = (pw - 8) / 2;
         int colH = 44;
