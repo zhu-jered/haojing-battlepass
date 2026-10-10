@@ -222,6 +222,10 @@ public class BattlePassScreen extends Screen {
     private int[] communityBounds;
     private final java.util.List<int[]> titleClickBounds = new java.util.ArrayList<>();
     private final java.util.List<String> titleClickIds = new java.util.ArrayList<>();
+    private int[] dailyRerollBounds;
+    private String dailyRerollGroup;
+    private int[] dailyExemptBounds;
+    private String dailyExemptGroup;
 
     /** 任务名称悬浮 Tooltip。 */
     private void renderTaskTooltip(DrawContext context, int mouseX, int mouseY) {
@@ -287,6 +291,22 @@ public class BattlePassScreen extends Screen {
                         rebuild();
                         return true;
                     }
+                }
+            }
+
+            // 每日：刷新/跳过按钮（手动命中检测）
+            if (tab == 1) {
+                if (dailyRerollBounds != null
+                        && mouseX >= dailyRerollBounds[0] && mouseX <= dailyRerollBounds[2]
+                        && mouseY >= dailyRerollBounds[1] && mouseY <= dailyRerollBounds[3]) {
+                    ClientNetworking.sendAction(NetActions.ClientAction.REROLL, dailyRerollGroup);
+                    return true;
+                }
+                if (dailyExemptBounds != null
+                        && mouseX >= dailyExemptBounds[0] && mouseX <= dailyExemptBounds[2]
+                        && mouseY >= dailyExemptBounds[1] && mouseY <= dailyExemptBounds[3]) {
+                    ClientNetworking.sendAction(NetActions.ClientAction.EXEMPT, dailyExemptGroup);
+                    return true;
                 }
             }
 
@@ -650,6 +670,20 @@ public class BattlePassScreen extends Screen {
     }
 
     /** 画进度条。 */
+    private void drawMiniButton(DrawContext context, int x, int y, int w, int h, String text, boolean enabled) {
+        int bg = enabled ? 0xFF666666 : 0xFF444444;
+        context.fill(x, y, x + w, y + h, bg);
+        context.fill(x, y, x + w, y + 1, 0xFFAAAAAA);
+        context.fill(x, y + h - 1, x + w, y + h, 0xFF333333);
+        context.fill(x, y, x + 1, y + h, 0xFFAAAAAA);
+        context.fill(x + w - 1, y, x + w, y + h, 0xFF333333);
+        int tw = this.textRenderer.getWidth(text);
+        int tx = x + (w - tw) / 2;
+        int ty = y + (h - 8) / 2;
+        int color = enabled ? 0xFFFFFFFF : 0xFF888888;
+        context.drawTextWithShadow(this.textRenderer, text, tx, ty, color);
+    }
+
     private int safeColor(String sectionCode, int fallback) {
         Integer c = GuiColors.parseSectionColor(sectionCode);
         return c == null ? fallback : (0xFF000000 | c);
@@ -694,14 +728,22 @@ public class BattlePassScreen extends Screen {
 
             int ly = y + 20;
             for (ModSnapshots.TaskLine line : lines) {
+                boolean claimed = "CLAIMED".equals(line.status);
+                boolean completed = "COMPLETED".equals(line.status);
                 String name = Text.translatableWithFallback("haojing_battlepass.task." + line.id, line.name).getString();
-                String progressStr = line.progress + "/" + line.target;
-                context.drawTextWithShadow(this.textRenderer, name, px + 10, ly,
-                        isLocked ? dimColor : 0xFFFFFFFF);
+                if (claimed) name = "§7[已跳过] " + name;
+                else if (completed) name = "§a[已完成] " + name;
+                String progressStr = claimed ? "§7已跳过" : (line.progress + "/" + line.target);
+                int nameColor = claimed ? 0xFF666666 : (isLocked ? dimColor : 0xFFFFFFFF);
+                context.drawTextWithShadow(this.textRenderer, name, px + 10, ly, nameColor);
                 int pw2 = this.textRenderer.getWidth(progressStr);
                 context.drawTextWithShadow(this.textRenderer, progressStr, px + pw - pw2 - 10, ly,
-                        isLocked ? dimColor : 0xFFCCCCCC);
-                drawProgressBar(context, px + 10, ly + 12, pw - 20, 4, line.progress, line.target);
+                        claimed ? 0xFF666666 : (isLocked ? dimColor : 0xFFCCCCCC));
+                if (!claimed) {
+                    drawProgressBar(context, px + 10, ly + 12, pw - 20, 4, line.progress, line.target);
+                } else {
+                    context.fill(px + 10, ly + 13, px + pw - 10, ly + 15, 0xFF444444);
+                }
 
                 if (mouseX >= px + 6 && mouseX <= px + pw - 6 && mouseY >= ly && mouseY <= ly + 18) {
                     Text tip = Text.translatableWithFallback("haojing_battlepass.task." + line.id + ".desc",
@@ -714,6 +756,14 @@ public class BattlePassScreen extends Screen {
 
             if (isChosen) {
                 ly += 4;
+                // 手动画刷新/跳过按钮
+                int btnLy = ly;
+                drawMiniButton(context, px + 10, btnLy, 44, 12, "刷新",
+                        mouseX >= px + 10 && mouseX <= px + 54 && mouseY >= btnLy && mouseY <= btnLy + 12);
+                ModSnapshots.Player self = ClientNetworking.state().player();
+                boolean hasCards = self.exemptCards > 0;
+                drawMiniButton(context, px + 60, btnLy, 52, 12,
+                        hasCards ? "跳过" : "跳过(无卡)", hasCards);
             }
 
             y += cardH + 6;
@@ -993,20 +1043,22 @@ public class BattlePassScreen extends Screen {
 
                 if (isChosen) {
                     int ly = cy + 20 + lines.size() * 22 + 4;
+                    dailyRerollBounds = new int[]{px + 10, ly, px + 54, ly + 12};
+                    dailyRerollGroup = group;
                     ModSnapshots.Player self = ClientNetworking.state().player();
-                    ButtonWidget reroll = ButtonWidget.builder(Text.literal("刷新"), w -> {
-                        ClientNetworking.sendAction(NetActions.ClientAction.REROLL, group);
-                        rebuild();
-                    }).dimensions(px + 10, ly, 44, 12).build();
-                    addDrawableChild(reroll);
                     boolean hasCards = self.exemptCards > 0;
-                    ButtonWidget exempt = ButtonWidget.builder(
-                            Text.literal(hasCards ? "跳过" : "跳过(无卡)"), w -> {
-                        ClientNetworking.sendAction(NetActions.ClientAction.EXEMPT, group);
-                        rebuild();
-                    }).dimensions(px + 60, ly, 52, 12).build();
-                    exempt.active = hasCards;
-                    addDrawableChild(exempt);
+                    if (hasCards) {
+                        dailyExemptBounds = new int[]{px + 60, ly, px + 112, ly + 12};
+                        dailyExemptGroup = group;
+                    } else {
+                        dailyExemptBounds = null;
+                        dailyExemptGroup = null;
+                    }
+                } else {
+                    dailyRerollBounds = null;
+                    dailyRerollGroup = null;
+                    dailyExemptBounds = null;
+                    dailyExemptGroup = null;
                 }
                 cy += cardH + 6;
             }
