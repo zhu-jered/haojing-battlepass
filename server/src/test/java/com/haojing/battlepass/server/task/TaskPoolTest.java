@@ -64,7 +64,8 @@ class TaskPoolTest {
                 "应生成 daily_tasks.json，否则管理员没有文件可改");
 
         for (String group : TaskPool.DAILY_GROUPS) {
-            assertEquals(12, pool.group(group).size(), "需求文档 §5.1：每组池规模默认 12 个，组=" + group);
+            int expected = "explore".equals(group) ? 14 : 12;
+            assertEquals(expected, pool.group(group).size(), "需求文档 §5.1：每组池规模默认 12 个，组=" + group);
         }
 
         assertEquals(6, pool.allWeekly().size(), "每周挑战池");
@@ -79,7 +80,7 @@ class TaskPoolTest {
         List<TaskDefinition> all = new ArrayList<>(pool.allDaily());
         all.addAll(pool.allWeekly());
 
-        assertEquals(42, all.size(), "默认池应为 12×3 每日 + 6 每周");
+        assertEquals(44, all.size(), "默认池应为 14+12+12 每日 + 6 每周");
 
         for (TaskDefinition definition : all) {
             assertNotNull(definition.actionOrNull(),
@@ -191,7 +192,7 @@ class TaskPoolTest {
         TaskPool reloaded = new TaskPoolManager(paths, new JsonStore()).load();
 
         assertEquals(5, reloaded.weeklyCount);
-        assertEquals(12, reloaded.group("explore").size());
+        assertEquals(14, reloaded.group("explore").size());
         assertEquals("深入地下", reloaded.group("explore").get(0).name, "中文应原样保存");
     }
 }

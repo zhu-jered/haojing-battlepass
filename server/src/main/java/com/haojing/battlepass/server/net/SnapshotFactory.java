@@ -67,6 +67,9 @@ public final class SnapshotFactory {
     private final BooleanSupplier longNightActive;
     private final TitleManager titleManager;
 
+    /** 随机事件运行时服务（可选，由装配处注入）。 */
+    private com.haojing.battlepass.server.event.RandomEventService randomEventService;
+
     public SnapshotFactory(PlayerDataManager dataManager, ConfigManager configManager, StoragePaths paths,
                            TaskPoolManager taskPoolManager, LevelRewardManager levelRewardManager,
                            ShopManager shopManager, EggManager eggManager, RedeemCodeManager redeemCodeManager,
@@ -98,6 +101,11 @@ public final class SnapshotFactory {
         this.battlePassService = battlePassService;
         this.longNightActive = longNightActive == null ? () -> false : longNightActive;
         this.titleManager = titleManager;
+    }
+
+    /** 注入随机事件运行时服务（首页展示事件状态用）。 */
+    public void setRandomEventService(com.haojing.battlepass.server.event.RandomEventService service) {
+        this.randomEventService = service;
     }
 
     /**
@@ -145,6 +153,28 @@ public final class SnapshotFactory {
         if (active && config != null) {
             // 倒计时按"距离长夜结束还有多少分钟"。跨零点时段由 TimeUtil.minutesUntil 处理。
             snapshot.longNightMinutesRemaining = (int) TimeUtil.minutesUntil(TimeUtil.now(), config.longNightEnd());
+        }
+
+        // ── 随机事件状态 ──
+        if (randomEventService != null) {
+            long nowMs = System.currentTimeMillis();
+            var evt = randomEventService.activeEvent();
+
+            if (evt != null && randomEventService.isActive()) {
+                snapshot.eventActive = true;
+                snapshot.eventId = evt.id;
+                snapshot.eventName = evt.name;
+                var type = evt.typeOrNull();
+                snapshot.eventTypeLabel = type == null ? evt.type : type.label();
+                snapshot.eventRemainingSeconds = (int) randomEventService.remainingSeconds(nowMs);
+                snapshot.eventParticipationType = evt.participation.typeOrDefault().name();
+                snapshot.eventParticipationTarget = Math.max(1, evt.participation.target);
+                snapshot.eventPlayerProgress = randomEventService.playerProgress(playerUuid);
+                snapshot.eventPlayerParticipated = randomEventService.participants().contains(playerUuid);
+                snapshot.eventRewardSummary = summarizeEventRewards(evt);
+            } else {
+                snapshot.eventCooldownSeconds = (int) randomEventService.cooldownSeconds(nowMs);
+            }
         }
 
         return snapshot;
@@ -453,6 +483,30 @@ public final class SnapshotFactory {
                 : (reward.itemId != null && !reward.itemId.isBlank() ? reward.itemId
                 : (reward.command != null && !reward.command.isBlank() ? reward.command : ""));
         return type + "|" + value + "|" + reward.amount;
+    }
+
+    /** 把事件奖励列表拼成中文摘要，如"60经验 + 5京币"。 */
+    private String summarizeEventRewards(com.haojing.battlepass.server.event.RandomEventDefinition evt) {
+        if (evt == null || evt.rewards == null || evt.rewards.isEmpty()) {
+            return "";
+        }
+
+        List<String> parts = new ArrayList<>();
+        for (Reward r : evt.rewards) {
+            if (r == null || r.amount <= 0) {
+                continue;
+            }
+            if ("BATTLEPASS_XP".equals(r.type)) {
+                parts.add(r.amount + "经验");
+            } else if ("STAR_COIN".equals(r.type)) {
+                parts.add(r.amount + "京币");
+            } else if ("ITEM".equals(r.type)) {
+                parts.add("物品");
+            } else if ("TITLE".equals(r.type)) {
+                parts.add("称号");
+            }
+        }
+        return String.join(" + ", parts);
     }
 
     /** @return data/history 下的赛季归档文件名（升序）。 */

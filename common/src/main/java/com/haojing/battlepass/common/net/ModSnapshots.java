@@ -54,6 +54,30 @@ public final class ModSnapshots {
 
         /** 客户端开关：是否在玩家头顶渲染称号前缀（仅本机观看其他玩家时生效）。 */
         public boolean nametagTitleVisible = true;
+
+        // ── 随机事件状态（首页展示） ──
+        /** 是否有事件进行中。 */
+        public boolean eventActive = false;
+        /** 进行中事件的 id（无事件时为空串）。 */
+        public String eventId = "";
+        /** 进行中事件名称。 */
+        public String eventName = "";
+        /** 进行中事件类型标签（怪物潮/天降补给/双倍经验/...）。 */
+        public String eventTypeLabel = "";
+        /** 进行中事件剩余秒数。 */
+        public int eventRemainingSeconds = 0;
+        /** 参与判定类型（ONLINE/KILL_ENTITY/TRADE 等）。 */
+        public String eventParticipationType = "";
+        /** 参与目标数。 */
+        public int eventParticipationTarget = 1;
+        /** 玩家当前参与进度。 */
+        public int eventPlayerProgress = 0;
+        /** 玩家是否已参与（ONLINE 类型开始时即算参与）。 */
+        public boolean eventPlayerParticipated = false;
+        /** 奖励摘要文字。 */
+        public String eventRewardSummary = "";
+        /** 无事件时距下次可触发的剩余秒数（冷却中）；有事件时为 0。 */
+        public int eventCooldownSeconds = 0;
     }
 
     /** 一条任务（每日或每周）在玩家身上的进度（§8：名称/描述/进度/状态/奖励）。 */

@@ -556,6 +556,7 @@ public class HaoJingBattlePassServer implements ModInitializer {
                                 LongNightManager current = longNightManager;
                                 return current != null && current.isActive();
                             }, titles);
+            snapshotFactory.setRandomEventService(eventService);
 
             com.haojing.battlepass.server.net.PlayerSyncService sync =
                     new com.haojing.battlepass.server.net.PlayerSyncService(snapshotFactory);

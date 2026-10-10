@@ -178,6 +178,32 @@
           "type": "BIOME",
           "value": "minecraft:mushroom_fields"
         }
+      },
+      {
+        "id": "exp_013",
+        "action": "KILL_ENTITY",
+        "name": "烈焰人",
+        "desc": "击杀 6 只烈焰人",
+        "target": 6,
+        "xp": 60,
+        "starCoin": 1,
+        "filter": {
+          "type": "ENTITY_ID",
+          "value": "minecraft:blaze"
+        }
+      },
+      {
+        "id": "exp_014",
+        "action": "KILL_ENTITY",
+        "name": "末影螨",
+        "desc": "击杀 5 只末影螨",
+        "target": 5,
+        "xp": 50,
+        "starCoin": 0,
+        "filter": {
+          "type": "ENTITY_ID",
+          "value": "minecraft:endermite"
+        }
       }
     ],
     "build": [
@@ -395,9 +421,9 @@
         "id": "gen_005",
         "action": "KILL_ENTITY",
         "name": "末影人",
-        "desc": "击杀 3 只末影人",
-        "target": 3,
-        "xp": 50,
+        "desc": "击杀 5 只末影人",
+        "target": 5,
+        "xp": 60,
         "starCoin": 0,
         "filter": {
           "type": "ENTITY_ID",
@@ -504,7 +530,12 @@
               "values": [
                 "minecraft:zombie",
                 "minecraft:skeleton",
-                "minecraft:spider"
+                "minecraft:spider",
+                "minecraft:creeper",
+                "minecraft:witch",
+                "minecraft:slime",
+                "minecraft:silverfish",
+                "minecraft:drowned"
               ]
             },
             {
@@ -564,8 +595,33 @@
         "values": [
           "minecraft:zombie",
           "minecraft:skeleton",
+          "minecraft:creeper",
           "minecraft:spider",
-          "minecraft:creeper"
+          "minecraft:witch",
+          "minecraft:slime",
+          "minecraft:silverfish",
+          "minecraft:drowned",
+          "minecraft:phantom",
+          "minecraft:zombie_villager",
+          "minecraft:husk",
+          "minecraft:stray",
+          "minecraft:pillager",
+          "minecraft:vindicator",
+          "minecraft:evoker",
+          "minecraft:ravager",
+          "minecraft:vex",
+          "minecraft:guardian",
+          "minecraft:elder_guardian",
+          "minecraft:blaze",
+          "minecraft:magma_cube",
+          "minecraft:wither_skeleton",
+          "minecraft:ghast",
+          "minecraft:zoglin",
+          "minecraft:endermite",
+          "minecraft:shulker",
+          "minecraft:zombified_piglin",
+          "minecraft:piglin",
+          "minecraft:piglin_brute"
         ]
       }
     },

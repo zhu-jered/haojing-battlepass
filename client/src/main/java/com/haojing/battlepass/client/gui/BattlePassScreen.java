@@ -423,6 +423,48 @@ public class BattlePassScreen extends Screen {
     private void buildHome(List<Row> built) {
         ModSnapshots.Player player = ClientNetworking.state().player();
 
+        // 顶部欢迎语
+        String playerName = this.client != null && this.client.player != null
+                ? this.client.player.getName().getString() : "";
+        built.add(row(Text.literal("§e§l欢迎您，" + playerName + "§r")));
+
+        // ── 随机事件区块 ──
+        if (player.eventActive) {
+            built.add(divider("⚡ 进行中的事件"));
+            String remain = formatRemaining(player.eventRemainingSeconds);
+            MutableText evtLine = Text.literal("§6" + player.eventName + " §r§7(" + player.eventTypeLabel + ")  剩余 §e" + remain);
+            built.add(row(evtLine));
+
+            // 参与要求
+            String progressText;
+            if ("ONLINE".equals(player.eventParticipationType)) {
+                progressText = player.eventPlayerParticipated ? "§a✓ 你已参与" : "§e在线即可参与";
+            } else {
+                String actionLabel = switch (player.eventParticipationType == null ? "" : player.eventParticipationType) {
+                    case "KILL_ENTITY" -> "击杀";
+                    case "TRADE" -> "交易";
+                    default -> "参与";
+                };
+                int prog = Math.min(player.eventPlayerProgress, player.eventParticipationTarget);
+                progressText = (player.eventPlayerParticipated ? "§a✓ 已参与  " : "")
+                        + "§7" + actionLabel + "进度：§f" + prog + "§7/§f" + player.eventParticipationTarget;
+            }
+            built.add(row(Text.literal(progressText)));
+
+            if (player.eventRewardSummary != null && !player.eventRewardSummary.isEmpty()) {
+                built.add(row(Text.literal("§7奖励：§f" + player.eventRewardSummary)));
+            }
+        } else {
+            built.add(divider("随机事件"));
+            if (player.eventCooldownSeconds > 60) {
+                long mins = player.eventCooldownSeconds / 60;
+                built.add(row(Text.literal("§7当前无进行中的事件，约 §e" + mins + " §7分钟后可触发")));
+            } else {
+                built.add(row(Text.literal("§7当前无进行中的事件，事件即将触发...")));
+            }
+        }
+
+        built.add(divider("赛季"));
         built.add(row(Text.translatable("haojing_battlepass.gui.home.season", player.themeName, player.seasonId)));
         built.add(row(Text.translatable("haojing_battlepass.gui.home.level", player.level, player.maxLevel)));
         built.add(row(Text.translatable("haojing_battlepass.gui.home.xp", player.xp, player.xpForNext)));
@@ -793,5 +835,13 @@ public class BattlePassScreen extends Screen {
     /** 彩蛋名同样优先翻译键；彩蛋名本身在服务端配置里也有中文名，这里只作为兜底。 */
     static Text eggText(String eggId) {
         return Text.translatableWithFallback("haojing_battlepass.egg_name." + eggId, eggId);
+    }
+
+    /** 把剩余秒数格式化为 mm:ss。 */
+    private static String formatRemaining(int seconds) {
+        if (seconds < 0) seconds = 0;
+        int m = seconds / 60;
+        int s = seconds % 60;
+        return String.format("%d:%02d", m, s);
     }
 }

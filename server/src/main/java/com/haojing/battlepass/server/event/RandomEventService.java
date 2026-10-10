@@ -365,6 +365,41 @@ public final class RandomEventService {
                 + " 秒 / 共 " + current.durationMinutes + " 分钟";
     }
 
+    /**
+     * 某玩家在当前事件中的参与进度（动作计数；ONLINE 类型未参与时返回 0，已参与时返回 target）。
+     */
+    public int playerProgress(UUID playerUuid) {
+        if (playerUuid == null || active == null) {
+            return 0;
+        }
+
+        if (participants.contains(playerUuid)) {
+            return Math.max(1, active.participation.target);
+        }
+
+        Integer count = actionCounts.get(playerUuid);
+        return count == null ? 0 : count;
+    }
+
+    /**
+     * 距下次可触发事件的剩余秒数（无事件且在冷却中时；否则返回 0）。
+     */
+    public long cooldownSeconds(long nowMillis) {
+        if (active != null) {
+            return 0L;
+        }
+
+        RandomEventConfig config = eventManager == null ? null : eventManager.config();
+
+        if (config == null || lastEndedAt <= 0L) {
+            return 0L;
+        }
+
+        long elapsed = nowMillis - lastEndedAt;
+        long remaining = config.minIntervalMillis() - elapsed;
+        return Math.max(0L, remaining / 1000L);
+    }
+
     /** 使用 {@link LinkedHashSet} 语义的参与者容器（保留加入顺序，便于日志）。 */
     Set<UUID> participantSet() {
         return new LinkedHashSet<>(participants);
