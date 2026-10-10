@@ -8,8 +8,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.state.EntityRenderState;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.text.MutableText;
+import net.minecraft.client.util.math.MatrixStack;import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
@@ -35,7 +34,7 @@ public abstract class EntityRendererMixin {
 
     @Inject(method = "renderLabelIfPresent", at = @At("HEAD"))
     private void haojing$prependTitle(EntityRenderState state, MatrixStack matrices,
-                                      VertexConsumerProvider consumers, int light, CallbackInfo ci) {
+                                      VertexConsumerProvider.Immediate consumers, int light, CallbackInfo ci) {
         try {
             if (state == null) {
                 return;
