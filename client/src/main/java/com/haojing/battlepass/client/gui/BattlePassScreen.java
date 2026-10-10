@@ -159,8 +159,8 @@ public class BattlePassScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        // 绘制顺序（1.21.11 起 super.render 只负责渲染子控件，不再画背景）：
-        // ① 面板底色 → ② 行选中底色/边框 → ③ 文字 → ④ super.render 按钮 → ⑤ Tab 高亮 → ⑥ Tooltip。
+        // 1.21.11 起 super.render 不画背景，自己铺一层全屏暗色
+        context.fill(0, 0, this.width, this.height, 0xC0101010);
         if (layout != null) {
             ModSnapshots.GuiStyle style = guiStyle();
 
@@ -440,7 +440,7 @@ public class BattlePassScreen extends Screen {
 
         // ── 随机事件区块 ──
         if (player.eventActive) {
-            built.add(divider("⚡ 进行中的事件"));
+            built.add(divider("进行中的事件"));
             String remain = formatRemaining(player.eventRemainingSeconds);
             MutableText evtLine = Text.literal("§6" + player.eventName + " §r§7(" + player.eventTypeLabel + ")  剩余 §e" + remain);
             built.add(row(evtLine));
