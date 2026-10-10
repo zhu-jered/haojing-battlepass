@@ -130,6 +130,15 @@ public final class ModSnapshots {
 
         /** 商店价格数字颜色（形如 "§6"），独立于分组颜色。 */
         public String shopPriceColor = "§6";
+
+        /** 首页顶部欢迎语文案（{player} 替换为玩家名）。 */
+        public String welcomeText = "欢迎您，{player}";
+
+        /** 欢迎语中文字部分颜色代码（形如 "§7"）。 */
+        public String welcomeColor = "§7";
+
+        /** 欢迎语中玩家名颜色代码（形如 "§f"）。 */
+        public String welcomePlayerColor = "§f";
     }
 
     /** 任务快照：三组每日 + 每周列表。 */

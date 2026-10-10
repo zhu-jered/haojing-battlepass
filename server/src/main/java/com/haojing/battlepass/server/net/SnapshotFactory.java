@@ -428,6 +428,11 @@ public final class SnapshotFactory {
         out.communityUrl = cfg.communityUrl == null ? "" : cfg.communityUrl.trim();
         out.shopPriceColor = com.haojing.battlepass.common.gui.GuiColors.normalizeSection(cfg.shopPriceColor, "§6");
 
+        out.welcomeText = cfg.welcomeText == null || cfg.welcomeText.isBlank()
+                ? "欢迎您，{player}" : cfg.welcomeText;
+        out.welcomeColor = com.haojing.battlepass.common.gui.GuiColors.normalizeSection(cfg.welcomeColor, "§7");
+        out.welcomePlayerColor = com.haojing.battlepass.common.gui.GuiColors.normalizeSection(cfg.welcomePlayerColor, "§f");
+
         out.shopGroupColors.clear();
 
         if (cfg.shopGroupColors != null) {

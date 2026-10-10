@@ -172,5 +172,14 @@ public class SeasonConfig {
 
         /** 商店价格数字的颜色（独立于分组颜色）。默认 §6（金色）。 */
         public String shopPriceColor = "§6";
+
+        /** 首页顶部欢迎语文案，{player} 替换为玩家名。默认 "欢迎您，{player}"。 */
+        public String welcomeText = "欢迎您，{player}";
+
+        /** 欢迎语中文字部分颜色（§ 代码）。默认 §7（浅灰）。 */
+        public String welcomeColor = "§7";
+
+        /** 欢迎语中玩家名颜色（§ 代码）。默认 §f（白色）。 */
+        public String welcomePlayerColor = "§f";
     }
 }

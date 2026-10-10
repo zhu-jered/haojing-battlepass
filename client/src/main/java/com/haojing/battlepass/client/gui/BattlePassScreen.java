@@ -423,10 +423,20 @@ public class BattlePassScreen extends Screen {
     private void buildHome(List<Row> built) {
         ModSnapshots.Player player = ClientNetworking.state().player();
 
-        // 顶部欢迎语
+        // 顶部欢迎语（文字/颜色均可在 season.json 的 gui 节点配置）
         String playerName = this.client != null && this.client.player != null
                 ? this.client.player.getName().getString() : "";
-        built.add(row(Text.literal("§7欢迎您，§f" + playerName)));
+        String template = player.guiStyle.welcomeText == null || player.guiStyle.welcomeText.isBlank()
+                ? "欢迎您，{player}" : player.guiStyle.welcomeText;
+        String labelColor = player.guiStyle.welcomeColor == null ? "§7" : player.guiStyle.welcomeColor;
+        String nameColor = player.guiStyle.welcomePlayerColor == null ? "§f" : player.guiStyle.welcomePlayerColor;
+        String[] parts = template.split("\\{player}", 2);
+        MutableText welcome = Text.literal(labelColor + parts[0]);
+        welcome.append(Text.literal(nameColor + playerName));
+        if (parts.length > 1 && !parts[1].isEmpty()) {
+            welcome.append(Text.literal(labelColor + parts[1]));
+        }
+        built.add(row(welcome));
 
         // ── 随机事件区块 ──
         if (player.eventActive) {

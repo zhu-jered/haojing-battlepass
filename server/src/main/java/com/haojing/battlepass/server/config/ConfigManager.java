@@ -299,6 +299,23 @@ public final class ConfigManager {
             gui.shopPriceColor = com.haojing.battlepass.common.gui.GuiColors.normalizeSection(gui.shopPriceColor, "§6");
         }
 
+        // 欢迎语颜色校验
+        if (gui.welcomeColor == null
+                || com.haojing.battlepass.common.gui.GuiColors.normalizeSection(gui.welcomeColor, null) == null) {
+            gui.welcomeColor = "§7";
+        } else {
+            gui.welcomeColor = com.haojing.battlepass.common.gui.GuiColors.normalizeSection(gui.welcomeColor, "§7");
+        }
+        if (gui.welcomePlayerColor == null
+                || com.haojing.battlepass.common.gui.GuiColors.normalizeSection(gui.welcomePlayerColor, null) == null) {
+            gui.welcomePlayerColor = "§f";
+        } else {
+            gui.welcomePlayerColor = com.haojing.battlepass.common.gui.GuiColors.normalizeSection(gui.welcomePlayerColor, "§f");
+        }
+        if (gui.welcomeText == null || gui.welcomeText.isBlank()) {
+            gui.welcomeText = "欢迎您，{player}";
+        }
+
         if (gui.shopGroupColors == null) {
             gui.shopGroupColors = new java.util.LinkedHashMap<>();
         } else {
