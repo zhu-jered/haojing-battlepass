@@ -378,10 +378,11 @@ public class HaoJingBattlePassServer implements ModInitializer {
                     }
                 }
                 if (anyClaimed && syncService != null) {
-                    for (UUID uuid : online) {
-                        syncService.markDirty(uuid, com.haojing.battlepass.server.net.SyncChannels.PLAYER);
-                        syncService.markDirty(uuid, com.haojing.battlepass.server.net.SyncChannels.TASKS);
-                        syncService.push(uuid);
+                    for (var player : server.getPlayerManager().getPlayerList()) {
+                        syncService.markDirty(player.getUuid(), com.haojing.battlepass.server.net.SyncChannels.PLAYER);
+                        syncService.markDirty(player.getUuid(), com.haojing.battlepass.server.net.SyncChannels.TASKS);
+                        syncService.push(player, com.haojing.battlepass.server.net.SyncChannels.PLAYER);
+                        syncService.push(player, com.haojing.battlepass.server.net.SyncChannels.TASKS);
                     }
                 }
             }
