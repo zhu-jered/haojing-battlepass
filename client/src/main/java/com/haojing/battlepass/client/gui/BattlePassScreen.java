@@ -788,7 +788,7 @@ public class BattlePassScreen extends Screen {
             int btnLy = y + cardH - 16;
             ModSnapshots.Player self = ClientNetworking.state().player();
             boolean hasCards = self.exemptCards > 0;
-            boolean canReroll = tasks.rerollUsed < tasks.rerollLimit;
+            boolean canReroll = self.rerollUsed < self.rerollLimit;
 
             if (isChosen) {
                 drawButtonBg(context, px + 10, btnLy, 44, 12, "刷新", canReroll,
@@ -801,7 +801,7 @@ public class BattlePassScreen extends Screen {
                 }
                 if (mouseX >= px + 10 && mouseX <= px + 54 && mouseY >= btnLy && mouseY <= btnLy + 12) {
                     context.drawTooltip(this.textRenderer,
-                            List.of(Text.literal(canReroll ? "刷新今日任务（剩余 " + (tasks.rerollLimit - tasks.rerollUsed) + " 次）" : "今日刷新次数已用完")),
+                            List.of(Text.literal(canReroll ? "刷新今日任务（剩余 " + (self.rerollLimit - self.rerollUsed) + " 次）" : "今日刷新次数已用完")),
                             mouseX, mouseY);
                 }
 
