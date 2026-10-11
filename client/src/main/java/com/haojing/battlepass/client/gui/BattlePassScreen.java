@@ -1038,7 +1038,7 @@ public class BattlePassScreen extends Screen {
                 int cardH = 24 + lines.size() * 22 + 30;
 
                 if (isChosen) {
-                    int ly = cy + 20 + lines.size() * 22 + 4;
+                    int ly = cy + cardH - 16;
                     ModSnapshots.Player self = ClientNetworking.state().player();
                     boolean hasCards = self.exemptCards > 0;
                     ButtonWidget reroll = ButtonWidget.builder(Text.literal("刷新"), w -> {
@@ -1052,8 +1052,7 @@ public class BattlePassScreen extends Screen {
                     exempt.active = hasCards;
                     addDrawableChild(exempt);
                 } else {
-                    // 未选组或已锁定组：放置"选择本组"/"更换本组"按钮
-                    int ly = cy + 20 + lines.size() * 22 + 4;
+                    int ly = cy + cardH - 16;
                     String btnText = chosen.isEmpty() ? "选择本组" : "更换本组";
                     int btnW = 70;
                     ButtonWidget choose = ButtonWidget.builder(Text.literal(btnText), w -> {
