@@ -527,13 +527,11 @@ public class BattlePassScreen extends Screen {
                     context.drawTextWithShadow(this.textRenderer, label, nx - lw / 2, lineY + 5, nodeColor);
                 }
 
-                // 奖励标注（有奖励的等级）
+                // 有奖励的等级画一个小三角标记（文字在悬停 tooltip 里显示，避免重叠）
                 if (p.levelRewards != null && p.levelRewards.containsKey(lv)) {
-                    String reward = p.levelRewards.get(lv);
-                    int rw = this.textRenderer.getWidth(reward);
-                    int ry = (lv == p.level) ? lineY - 12 : lineY + 15;
                     int rc = safeColor(p.guiStyle.levelAxisReward, 0xFFFFAA00);
-                    context.drawTextWithShadow(this.textRenderer, reward, nx - rw / 2, ry, rc);
+                    int triY = lineY - 6;
+                    context.fill(nx - 2, triY, nx + 2, triY + 2, rc);
                 }
             }
 
