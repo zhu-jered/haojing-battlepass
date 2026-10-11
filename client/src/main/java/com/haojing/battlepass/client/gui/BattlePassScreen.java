@@ -292,6 +292,27 @@ public class BattlePassScreen extends Screen {
                 return true;
             }
 
+            // 每日：手动按钮点击
+            if (tab == 1 && dailyBtnBounds != null) {
+                for (int i = 0; i < dailyBtnBounds.length; i++) {
+                    if (dailyBtnBounds[i] == null) continue;
+                    int[] b = dailyBtnBounds[i];
+                    if (mouseX >= b[0] && mouseX <= b[2] && mouseY >= b[1] && mouseY <= b[3]) {
+                        String action = dailyBtnActions[i];
+                        String group = dailyBtnGroups[i];
+                        if ("REROLL".equals(action)) {
+                            ClientNetworking.sendAction(NetActions.ClientAction.REROLL, group);
+                        } else if ("EXEMPT".equals(action)) {
+                            ClientNetworking.sendAction(NetActions.ClientAction.EXEMPT, group);
+                        } else if ("CHOOSE".equals(action)) {
+                            ClientNetworking.sendAction(NetActions.ClientAction.CHOOSE_DAILY_GROUP, group);
+                            rebuild();
+                        }
+                        return true;
+                    }
+                }
+            }
+
             // 称号：点击已拥有的称号装备
             if (tab == 4) {
                 for (int i = 0; i < titleClickBounds.size(); i++) {
@@ -697,6 +718,11 @@ public class BattlePassScreen extends Screen {
         }
     }
 
+    // 每日任务按钮点击区域
+    private int[][] dailyBtnBounds;
+    private String[] dailyBtnActions;
+    private String[] dailyBtnGroups;
+
     private void renderDailyCustom(DrawContext context, int mouseX, int mouseY) {
         ModSnapshots.Tasks tasks = ClientNetworking.state().tasks();
         int px = layout.panelX() + 6;
@@ -707,6 +733,12 @@ public class BattlePassScreen extends Screen {
         String[] groups = {"explore", "build", "general"};
         String chosen = tasks.chosenGroup == null ? "" : tasks.chosenGroup;
 
+        // 重置按钮列表
+        dailyBtnBounds = new int[9][];
+        dailyBtnActions = new String[9];
+        dailyBtnGroups = new String[9];
+        int btnIdx = 0;
+
         for (String group : groups) {
             String groupName = Text.translatable("haojing_battlepass.gui.group." + group).getString();
             boolean isChosen = group.equals(chosen);
@@ -714,8 +746,7 @@ public class BattlePassScreen extends Screen {
             int borderColor = isChosen ? 0xFF55AA55 : (isLocked ? 0xFF444444 : CARD_BORDER);
 
             var lines = tasks.group(group);
-            int cardH = 24 + lines.size() * 22 + (isChosen ? 30 : 0);
-            if (chosen.isEmpty()) cardH = 24 + lines.size() * 22 + 26;
+            int cardH = 24 + lines.size() * 22 + 28;
 
             drawCard(context, px, y, pw, cardH, borderColor);
             String status = isChosen ? "已选中" : (isLocked ? "已锁定" : "未选择");
@@ -753,15 +784,58 @@ public class BattlePassScreen extends Screen {
                 ly += 22;
             }
 
+            // 按钮固定在卡片底部
+            int btnLy = y + cardH - 16;
+            ModSnapshots.Player self = ClientNetworking.state().player();
+            boolean hasCards = self.exemptCards > 0;
+
             if (isChosen) {
-                ly += 4;
-            } else if (chosen.isEmpty() || isLocked) {
-                // 未选组/已锁定组：按钮由 ButtonWidget 统一放置，这里不画
-                ly += 4;
+                drawButtonBg(context, px + 10, btnLy, 44, 12, "刷新", true,
+                        mouseX >= px + 10 && mouseX <= px + 54 && mouseY >= btnLy && mouseY <= btnLy + 12);
+                dailyBtnBounds[btnIdx] = new int[]{px + 10, btnLy, px + 54, btnLy + 12};
+                dailyBtnActions[btnIdx] = "REROLL";
+                dailyBtnGroups[btnIdx] = group;
+                btnIdx++;
+
+                drawButtonBg(context, px + 60, btnLy, 56, 12,
+                        hasCards ? "跳过" : "跳过(无卡)", hasCards,
+                        mouseX >= px + 60 && mouseX <= px + 116 && mouseY >= btnLy && mouseY <= btnLy + 12);
+                if (hasCards) {
+                    dailyBtnBounds[btnIdx] = new int[]{px + 60, btnLy, px + 116, btnLy + 12};
+                    dailyBtnActions[btnIdx] = "EXEMPT";
+                    dailyBtnGroups[btnIdx] = group;
+                    btnIdx++;
+                }
+            } else {
+                String btnText = chosen.isEmpty() ? "选择本组" : "更换本组";
+                int btnW = 72;
+                int btnX = px + pw - btnW - 10;
+                drawButtonBg(context, btnX, btnLy, btnW, 12, btnText, true,
+                        mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnLy && mouseY <= btnLy + 12);
+                dailyBtnBounds[btnIdx] = new int[]{btnX, btnLy, btnX + btnW, btnLy + 12};
+                dailyBtnActions[btnIdx] = "CHOOSE";
+                dailyBtnGroups[btnIdx] = group;
+                btnIdx++;
             }
 
             y += cardH + 6;
         }
+    }
+
+    /** 原版 MC 按钮外观。 */
+    private void drawButtonBg(DrawContext context, int x, int y, int w, int h, String text,
+                              boolean enabled, boolean hovered) {
+        int bg = !enabled ? 0xFF5A5A5A : hovered ? 0xFFB0B0B0 : 0xFF8B8B8B;
+        context.fill(x, y, x + w, y + h, bg);
+        context.fill(x, y, x + w, y + 1, 0xFFFFFFFF);
+        context.fill(x, y, x + 1, y + h, 0xFFFFFFFF);
+        context.fill(x, y + h - 1, x + w, y + h, 0xFF3F3F3F);
+        context.fill(x + w - 1, y, x + w, y + h, 0xFF3F3F3F);
+        int tw = this.textRenderer.getWidth(text);
+        int tx = x + (w - tw) / 2;
+        int ty = y + (h - 8) / 2;
+        context.drawTextWithShadow(this.textRenderer, text, tx, ty,
+                enabled ? 0xFFFFFFFF : 0xFFAAAAAA);
     }
 
     private void renderWeeklyCustom(DrawContext context, int mouseX, int mouseY) {
@@ -1023,45 +1097,8 @@ public class BattlePassScreen extends Screen {
         int pw = layout.panelWidth() - 12;
         int y0 = layout.contentTop();
 
-        if (tab == 1) { // 每日
-            ModSnapshots.Tasks tasks = ClientNetworking.state().tasks();
-            String chosen = tasks.chosenGroup == null ? "" : tasks.chosenGroup;
-            String[] groups = {"explore", "build", "general"};
-            dailyChooseBounds = new int[3][];
-            dailyChooseGroups = new String[3];
-            int cy = y0;
-            for (int gi = 0; gi < groups.length; gi++) {
-                String group = groups[gi];
-                var lines = tasks.group(group);
-                boolean isChosen = group.equals(chosen);
-                boolean isLocked = !chosen.isEmpty() && !isChosen;
-                int cardH = 24 + lines.size() * 22 + 30;
-
-                if (isChosen) {
-                    int ly = cy + cardH - 16;
-                    ModSnapshots.Player self = ClientNetworking.state().player();
-                    boolean hasCards = self.exemptCards > 0;
-                    ButtonWidget reroll = ButtonWidget.builder(Text.literal("刷新"), w -> {
-                        ClientNetworking.sendAction(NetActions.ClientAction.REROLL, group);
-                    }).dimensions(px + 10, ly, 44, 12).build();
-                    addDrawableChild(reroll);
-                    ButtonWidget exempt = ButtonWidget.builder(
-                            Text.literal(hasCards ? "跳过" : "跳过(无卡)"), w -> {
-                        ClientNetworking.sendAction(NetActions.ClientAction.EXEMPT, group);
-                    }).dimensions(px + 60, ly, 52, 12).build();
-                    exempt.active = hasCards;
-                    addDrawableChild(exempt);
-                } else {
-                    int ly = cy + cardH - 16;
-                    String btnText = chosen.isEmpty() ? "选择本组" : "更换本组";
-                    int btnW = 70;
-                    ButtonWidget choose = ButtonWidget.builder(Text.literal(btnText), w -> {
-                        ClientNetworking.sendAction(NetActions.ClientAction.CHOOSE_DAILY_GROUP, group);
-                    }).dimensions(px + pw - btnW - 10, ly, btnW, 12).build();
-                    addDrawableChild(choose);
-                }
-                cy += cardH + 6;
-            }
+        // 每日 tab 的按钮全部在 renderDailyCustom 里手动画，这里不创建 ButtonWidget
+        if (false) { // 占位
         } else if (tab == 3) { // 商店
             ModSnapshots.Shop shop = ClientNetworking.state().shop();
             int cy = y0 + 16;
