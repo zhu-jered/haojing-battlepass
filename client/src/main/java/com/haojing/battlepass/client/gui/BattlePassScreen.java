@@ -292,27 +292,6 @@ public class BattlePassScreen extends Screen {
                 return true;
             }
 
-            // 每日：手动按钮点击
-            if (tab == 1 && dailyBtnBounds != null) {
-                for (int i = 0; i < dailyBtnBounds.length; i++) {
-                    if (dailyBtnBounds[i] == null) continue;
-                    int[] b = dailyBtnBounds[i];
-                    if (mouseX >= b[0] && mouseX <= b[2] && mouseY >= b[1] && mouseY <= b[3]) {
-                        String action = dailyBtnActions[i];
-                        String group = dailyBtnGroups[i];
-                        if ("REROLL".equals(action)) {
-                            ClientNetworking.sendAction(NetActions.ClientAction.REROLL, group);
-                        } else if ("EXEMPT".equals(action)) {
-                            ClientNetworking.sendAction(NetActions.ClientAction.EXEMPT, group);
-                        } else if ("CHOOSE".equals(action)) {
-                            ClientNetworking.sendAction(NetActions.ClientAction.CHOOSE_DAILY_GROUP, group);
-                            rebuild();
-                        }
-                        return true;
-                    }
-                }
-            }
-
             // 称号：点击已拥有的称号装备
             if (tab == 4) {
                 for (int i = 0; i < titleClickBounds.size(); i++) {
@@ -784,58 +763,7 @@ public class BattlePassScreen extends Screen {
                 ly += 22;
             }
 
-            // 按钮固定在卡片底部
-            int btnLy = y + cardH - 16;
-            ModSnapshots.Player self = ClientNetworking.state().player();
-            boolean hasCards = self.exemptCards > 0;
-            boolean canReroll = self.rerollUsed < self.rerollLimit;
-
-            if (isChosen) {
-                drawButtonBg(context, px + 10, btnLy, 44, 12, "刷新", canReroll,
-                        mouseX >= px + 10 && mouseX <= px + 54 && mouseY >= btnLy && mouseY <= btnLy + 12);
-                if (canReroll) {
-                    dailyBtnBounds[btnIdx] = new int[]{px + 10, btnLy, px + 54, btnLy + 12};
-                    dailyBtnActions[btnIdx] = "REROLL";
-                    dailyBtnGroups[btnIdx] = group;
-                    btnIdx++;
-                }
-                if (mouseX >= px + 10 && mouseX <= px + 54 && mouseY >= btnLy && mouseY <= btnLy + 12) {
-                    context.drawTooltip(this.textRenderer,
-                            List.of(Text.literal(canReroll ? "刷新今日任务（剩余 " + (self.rerollLimit - self.rerollUsed) + " 次）" : "今日刷新次数已用完")),
-                            mouseX, mouseY);
-                }
-
-                drawButtonBg(context, px + 60, btnLy, 56, 12,
-                        hasCards ? "跳过" : "跳过(无卡)", hasCards,
-                        mouseX >= px + 60 && mouseX <= px + 116 && mouseY >= btnLy && mouseY <= btnLy + 12);
-                if (hasCards) {
-                    dailyBtnBounds[btnIdx] = new int[]{px + 60, btnLy, px + 116, btnLy + 12};
-                    dailyBtnActions[btnIdx] = "EXEMPT";
-                    dailyBtnGroups[btnIdx] = group;
-                    btnIdx++;
-                }
-                if (mouseX >= px + 60 && mouseX <= px + 116 && mouseY >= btnLy && mouseY <= btnLy + 12) {
-                    context.drawTooltip(this.textRenderer,
-                            List.of(Text.literal(hasCards ? "跳过当前任务，使用 1 张任务卡" : "没有任务卡，无法跳过")),
-                            mouseX, mouseY);
-                }
-            } else {
-                String btnText = chosen.isEmpty() ? "选择本组" : "更换本组";
-                int btnW = 72;
-                int btnX = px + pw - btnW - 10;
-                drawButtonBg(context, btnX, btnLy, btnW, 12, btnText, true,
-                        mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnLy && mouseY <= btnLy + 12);
-                dailyBtnBounds[btnIdx] = new int[]{btnX, btnLy, btnX + btnW, btnLy + 12};
-                dailyBtnActions[btnIdx] = "CHOOSE";
-                dailyBtnGroups[btnIdx] = group;
-                btnIdx++;
-                if (mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnLy && mouseY <= btnLy + 12) {
-                    context.drawTooltip(this.textRenderer,
-                            List.of(Text.literal(chosen.isEmpty() ? "选择此组为今日任务" : "切换到此组任务")),
-                            mouseX, mouseY);
-                }
-            }
-
+            // 按钮由 addCustomButtons 用原版 ButtonWidget 渲染，这里只留间距
             y += cardH + 6;
         }
     }
@@ -1115,8 +1043,43 @@ public class BattlePassScreen extends Screen {
         int pw = layout.panelWidth() - 12;
         int y0 = layout.contentTop();
 
-        // 每日 tab 的按钮全部在 renderDailyCustom 里手动画，这里不创建 ButtonWidget
-        if (false) { // 占位
+        // 每日 tab 的按钮用 ButtonWidget，位置和 renderDailyCustom 完全一致
+        if (tab == 1) {
+            ModSnapshots.Tasks tasks = ClientNetworking.state().tasks();
+            ModSnapshots.Player self = ClientNetworking.state().player();
+            String chosen = tasks.chosenGroup == null ? "" : tasks.chosenGroup;
+            String[] groups = {"explore", "build", "general"};
+            int cy = y0;
+            for (String group : groups) {
+                var lines = tasks.group(group);
+                boolean isChosen = group.equals(chosen);
+                int cardH = 24 + lines.size() * 22 + 28;
+                int btnLy = cy + cardH - 16;
+
+                if (isChosen) {
+                    boolean canReroll = self.rerollUsed < self.rerollLimit;
+                    boolean hasCards = self.exemptCards > 0;
+                    ButtonWidget reroll = ButtonWidget.builder(Text.literal("刷新"), w -> {
+                        ClientNetworking.sendAction(NetActions.ClientAction.REROLL, group);
+                    }).dimensions(px + 10, btnLy, 44, 12).tooltip(Text.literal("刷新今日任务（剩余 " + (self.rerollLimit - self.rerollUsed) + " 次）")).build();
+                    reroll.active = canReroll;
+                    addDrawableChild(reroll);
+
+                    ButtonWidget exempt = ButtonWidget.builder(Text.literal(hasCards ? "跳过" : "跳过(无卡)"), w -> {
+                        ClientNetworking.sendAction(NetActions.ClientAction.EXEMPT, group);
+                    }).dimensions(px + 60, btnLy, 56, 12).tooltip(Text.literal("跳过当前任务，使用 1 张任务卡")).build();
+                    exempt.active = hasCards;
+                    addDrawableChild(exempt);
+                } else {
+                    String btnText = chosen.isEmpty() ? "选择本组" : "更换本组";
+                    int btnW = 72;
+                    ButtonWidget choose = ButtonWidget.builder(Text.literal(btnText), w -> {
+                        ClientNetworking.sendAction(NetActions.ClientAction.CHOOSE_DAILY_GROUP, group);
+                    }).dimensions(px + pw - btnW - 10, btnLy, btnW, 12).tooltip(Text.literal(chosen.isEmpty() ? "选择此组为今日任务" : "切换到此组任务")).build();
+                    addDrawableChild(choose);
+                }
+                cy += cardH + 6;
+            }
         } else if (tab == 3) { // 商店
             ModSnapshots.Shop shop = ClientNetworking.state().shop();
             int cy = y0 + 16;
