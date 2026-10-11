@@ -1070,12 +1070,11 @@ public class BattlePassScreen extends Screen {
                     exempt.active = hasCards;
                     addDrawableChild(exempt);
                 } else {
-                    if (chosen.isEmpty()) {
-                        ButtonWidget choose = ButtonWidget.builder(Text.literal("选择本组"), w -> {
-                            ClientNetworking.sendAction(NetActions.ClientAction.CHOOSE_DAILY_GROUP, group);
-                        }).dimensions(px + pw - 72 - 10, btnLy, 72, 12).tooltip(Tooltip.of(Text.literal("选择此组为今日任务"))).build();
-                        addDrawableChild(choose);
-                    }
+                    String btnText = chosen.isEmpty() ? "选择本组" : "更换本组";
+                    ButtonWidget choose = ButtonWidget.builder(Text.literal(btnText), w -> {
+                        ClientNetworking.sendAction(NetActions.ClientAction.CHOOSE_DAILY_GROUP, group);
+                    }).dimensions(px + pw - 72 - 10, btnLy, 72, 12).tooltip(Tooltip.of(Text.literal(chosen.isEmpty() ? "选择此组为今日任务" : "切换到其他组（当前组任务未完成时可换）"))).build();
+                    addDrawableChild(choose);
                 }
                 cy += cardH + 6;
             }

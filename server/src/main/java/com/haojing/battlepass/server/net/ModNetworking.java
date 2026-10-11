@@ -340,9 +340,16 @@ public final class ModNetworking {
 
         var season = dataManager.season(uuid);
 
-        // 一旦选定组，当天不能再换
+        // 当前已选组的任务如果已完成/已领取，则不能再换组
         if (season.chosenDailyGroup != null && !season.chosenDailyGroup.isEmpty()) {
-            return false;
+            var current = season.dailyTasks == null ? null : season.dailyTasks.get(season.chosenDailyGroup);
+            if (current != null) {
+                var st = current.status();
+                if (st == com.haojing.battlepass.common.data.TaskStatus.COMPLETED
+                        || st == com.haojing.battlepass.common.data.TaskStatus.CLAIMED) {
+                    return false;
+                }
+            }
         }
 
         season.chosenDailyGroup = group;
