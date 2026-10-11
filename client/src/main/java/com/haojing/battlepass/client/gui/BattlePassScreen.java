@@ -10,6 +10,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -1061,13 +1062,13 @@ public class BattlePassScreen extends Screen {
                     boolean hasCards = self.exemptCards > 0;
                     ButtonWidget reroll = ButtonWidget.builder(Text.literal("刷新"), w -> {
                         ClientNetworking.sendAction(NetActions.ClientAction.REROLL, group);
-                    }).dimensions(px + 10, btnLy, 44, 12).tooltip(Text.literal("刷新今日任务（剩余 " + (self.rerollLimit - self.rerollUsed) + " 次）")).build();
+                    }).dimensions(px + 10, btnLy, 44, 12).tooltip(Tooltip.of(Text.literal("刷新今日任务（剩余 " + (self.rerollLimit - self.rerollUsed) + " 次）"))).build();
                     reroll.active = canReroll;
                     addDrawableChild(reroll);
 
                     ButtonWidget exempt = ButtonWidget.builder(Text.literal(hasCards ? "跳过" : "跳过(无卡)"), w -> {
                         ClientNetworking.sendAction(NetActions.ClientAction.EXEMPT, group);
-                    }).dimensions(px + 60, btnLy, 56, 12).tooltip(Text.literal("跳过当前任务，使用 1 张任务卡")).build();
+                    }).dimensions(px + 60, btnLy, 56, 12).tooltip(Tooltip.of(Text.literal("跳过当前任务，使用 1 张任务卡"))).build();
                     exempt.active = hasCards;
                     addDrawableChild(exempt);
                 } else {
@@ -1075,7 +1076,7 @@ public class BattlePassScreen extends Screen {
                     int btnW = 72;
                     ButtonWidget choose = ButtonWidget.builder(Text.literal(btnText), w -> {
                         ClientNetworking.sendAction(NetActions.ClientAction.CHOOSE_DAILY_GROUP, group);
-                    }).dimensions(px + pw - btnW - 10, btnLy, btnW, 12).tooltip(Text.literal(chosen.isEmpty() ? "选择此组为今日任务" : "切换到此组任务")).build();
+                    }).dimensions(px + pw - btnW - 10, btnLy, btnW, 12).tooltip(Tooltip.of(Text.literal(chosen.isEmpty() ? "选择此组为今日任务" : "切换到此组任务"))).build();
                     addDrawableChild(choose);
                 }
                 cy += cardH + 6;
