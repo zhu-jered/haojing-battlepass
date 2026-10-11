@@ -345,10 +345,7 @@ public final class ModNetworking {
             return false;
         }
 
-        if (season.chosenDailyGroup != null && !season.chosenDailyGroup.isEmpty()) {
-            return false;
-        }
-
+        // 允许更换已选组
         season.chosenDailyGroup = group;
         dataManager.markSeasonDirty(uuid);
         return true;

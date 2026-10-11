@@ -788,14 +788,22 @@ public class BattlePassScreen extends Screen {
             int btnLy = y + cardH - 16;
             ModSnapshots.Player self = ClientNetworking.state().player();
             boolean hasCards = self.exemptCards > 0;
+            boolean canReroll = tasks.rerollUsed < tasks.rerollLimit;
 
             if (isChosen) {
-                drawButtonBg(context, px + 10, btnLy, 44, 12, "刷新", true,
+                drawButtonBg(context, px + 10, btnLy, 44, 12, "刷新", canReroll,
                         mouseX >= px + 10 && mouseX <= px + 54 && mouseY >= btnLy && mouseY <= btnLy + 12);
-                dailyBtnBounds[btnIdx] = new int[]{px + 10, btnLy, px + 54, btnLy + 12};
-                dailyBtnActions[btnIdx] = "REROLL";
-                dailyBtnGroups[btnIdx] = group;
-                btnIdx++;
+                if (canReroll) {
+                    dailyBtnBounds[btnIdx] = new int[]{px + 10, btnLy, px + 54, btnLy + 12};
+                    dailyBtnActions[btnIdx] = "REROLL";
+                    dailyBtnGroups[btnIdx] = group;
+                    btnIdx++;
+                }
+                if (mouseX >= px + 10 && mouseX <= px + 54 && mouseY >= btnLy && mouseY <= btnLy + 12) {
+                    context.drawTooltip(this.textRenderer,
+                            List.of(Text.literal(canReroll ? "刷新今日任务（剩余 " + (tasks.rerollLimit - tasks.rerollUsed) + " 次）" : "今日刷新次数已用完")),
+                            mouseX, mouseY);
+                }
 
                 drawButtonBg(context, px + 60, btnLy, 56, 12,
                         hasCards ? "跳过" : "跳过(无卡)", hasCards,
@@ -805,6 +813,11 @@ public class BattlePassScreen extends Screen {
                     dailyBtnActions[btnIdx] = "EXEMPT";
                     dailyBtnGroups[btnIdx] = group;
                     btnIdx++;
+                }
+                if (mouseX >= px + 60 && mouseX <= px + 116 && mouseY >= btnLy && mouseY <= btnLy + 12) {
+                    context.drawTooltip(this.textRenderer,
+                            List.of(Text.literal(hasCards ? "跳过当前任务，使用 1 张任务卡" : "没有任务卡，无法跳过")),
+                            mouseX, mouseY);
                 }
             } else {
                 String btnText = chosen.isEmpty() ? "选择本组" : "更换本组";
@@ -816,6 +829,11 @@ public class BattlePassScreen extends Screen {
                 dailyBtnActions[btnIdx] = "CHOOSE";
                 dailyBtnGroups[btnIdx] = group;
                 btnIdx++;
+                if (mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnLy && mouseY <= btnLy + 12) {
+                    context.drawTooltip(this.textRenderer,
+                            List.of(Text.literal(chosen.isEmpty() ? "选择此组为今日任务" : "切换到此组任务")),
+                            mouseX, mouseY);
+                }
             }
 
             y += cardH + 6;
