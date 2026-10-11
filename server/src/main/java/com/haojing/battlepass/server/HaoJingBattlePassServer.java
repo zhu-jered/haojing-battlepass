@@ -348,6 +348,37 @@ public class HaoJingBattlePassServer implements ModInitializer {
             }
         }
 
+        // 自动领取已完成任务的奖励（每日选中组 + 每周全部）
+        try {
+            BattlePassService bp = battlePassService;
+            if (bp != null && dataManager != null) {
+                for (UUID uuid : online) {
+                    var season = dataManager.season(uuid);
+                    if (season.dailyTasks != null) {
+                        String chosen = season.chosenDailyGroup == null ? "" : season.chosenDailyGroup;
+                        for (var entry : season.dailyTasks.entrySet()) {
+                            String group = entry.getKey();
+                            var progress = entry.getValue();
+                            if (progress != null && progress.status() == com.haojing.battlepass.server.task.TaskStatus.COMPLETED
+                                    && group.equals(chosen)) {
+                                bp.claimTaskReward(uuid, progress.taskId);
+                            }
+                        }
+                    }
+                    if (season.weeklyTasks != null) {
+                        for (var entry : season.weeklyTasks.entrySet()) {
+                            var progress = entry.getValue();
+                            if (progress != null && progress.status() == com.haojing.battlepass.server.task.TaskStatus.COMPLETED) {
+                                bp.claimTaskReward(uuid, progress.taskId);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (RuntimeException e) {
+            LOGGER.warn("{} 自动领取奖励出现异常（本轮跳过）：{}", ModConstants.LOG_PREFIX, e.toString());
+        }
+
         // 随机事件：§10 要求全天可触发，长夜期间照常运行。
         RandomEventService events = randomEventService;
 
