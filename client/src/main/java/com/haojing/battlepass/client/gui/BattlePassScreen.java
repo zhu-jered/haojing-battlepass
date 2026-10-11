@@ -296,29 +296,15 @@ public class BattlePassScreen extends Screen {
                 }
             }
 
-            // 每日：刷新/跳过按钮（手动命中检测）
-            if (tab == 1) {
-                if (dailyRerollBounds != null
-                        && mouseX >= dailyRerollBounds[0] && mouseX <= dailyRerollBounds[2]
-                        && mouseY >= dailyRerollBounds[1] && mouseY <= dailyRerollBounds[3]) {
-                    ClientNetworking.sendAction(NetActions.ClientAction.REROLL, dailyRerollGroup);
-                    return true;
-                }
-                if (dailyExemptBounds != null
-                        && mouseX >= dailyExemptBounds[0] && mouseX <= dailyExemptBounds[2]
-                        && mouseY >= dailyExemptBounds[1] && mouseY <= dailyExemptBounds[3]) {
-                    ClientNetworking.sendAction(NetActions.ClientAction.EXEMPT, dailyExemptGroup);
-                    return true;
-                }
-                if (dailyChooseBounds != null) {
-                    for (int i = 0; i < dailyChooseBounds.length; i++) {
-                        if (dailyChooseBounds[i] != null
-                                && mouseX >= dailyChooseBounds[i][0] && mouseX <= dailyChooseBounds[i][2]
-                                && mouseY >= dailyChooseBounds[i][1] && mouseY <= dailyChooseBounds[i][3]) {
-                            ClientNetworking.sendAction(NetActions.ClientAction.CHOOSE_DAILY_GROUP, dailyChooseGroups[i]);
-                            rebuild();
-                            return true;
-                        }
+            // 每日：选择本组按钮（手动命中检测）
+            if (tab == 1 && dailyChooseBounds != null) {
+                for (int i = 0; i < dailyChooseBounds.length; i++) {
+                    if (dailyChooseBounds[i] != null
+                            && mouseX >= dailyChooseBounds[i][0] && mouseX <= dailyChooseBounds[i][2]
+                            && mouseY >= dailyChooseBounds[i][1] && mouseY <= dailyChooseBounds[i][3]) {
+                        ClientNetworking.sendAction(NetActions.ClientAction.CHOOSE_DAILY_GROUP, dailyChooseGroups[i]);
+                        rebuild();
+                        return true;
                     }
                 }
             }
@@ -774,14 +760,6 @@ public class BattlePassScreen extends Screen {
 
             if (isChosen) {
                 ly += 4;
-                // 手动画刷新/跳过按钮
-                int btnLy = ly;
-                drawMiniButton(context, px + 10, btnLy, 44, 12, "刷新",
-                        mouseX >= px + 10 && mouseX <= px + 54 && mouseY >= btnLy && mouseY <= btnLy + 12);
-                ModSnapshots.Player self = ClientNetworking.state().player();
-                boolean hasCards = self.exemptCards > 0;
-                drawMiniButton(context, px + 60, btnLy, 52, 12,
-                        hasCards ? "跳过" : "跳过(无卡)", hasCards);
             } else if (chosen.isEmpty()) {
                 // 未选组：显示"选择本组"按钮
                 ly += 4;
@@ -1071,17 +1049,18 @@ public class BattlePassScreen extends Screen {
 
                 if (isChosen) {
                     int ly = cy + 20 + lines.size() * 22 + 4;
-                    dailyRerollBounds = new int[]{px + 10, ly, px + 54, ly + 12};
-                    dailyRerollGroup = group;
                     ModSnapshots.Player self = ClientNetworking.state().player();
                     boolean hasCards = self.exemptCards > 0;
-                    if (hasCards) {
-                        dailyExemptBounds = new int[]{px + 60, ly, px + 112, ly + 12};
-                        dailyExemptGroup = group;
-                    } else {
-                        dailyExemptBounds = null;
-                        dailyExemptGroup = null;
-                    }
+                    ButtonWidget reroll = ButtonWidget.builder(Text.literal("刷新"), w -> {
+                        ClientNetworking.sendAction(NetActions.ClientAction.REROLL, group);
+                    }).dimensions(px + 10, ly, 44, 12).build();
+                    addDrawableChild(reroll);
+                    ButtonWidget exempt = ButtonWidget.builder(
+                            Text.literal(hasCards ? "跳过" : "跳过(无卡)"), w -> {
+                        ClientNetworking.sendAction(NetActions.ClientAction.EXEMPT, group);
+                    }).dimensions(px + 60, ly, 52, 12).build();
+                    exempt.active = hasCards;
+                    addDrawableChild(exempt);
                 } else {
                     dailyRerollBounds = null;
                     dailyRerollGroup = null;
