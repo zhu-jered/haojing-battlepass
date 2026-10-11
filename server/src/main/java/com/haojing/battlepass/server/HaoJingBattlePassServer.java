@@ -352,6 +352,7 @@ public class HaoJingBattlePassServer implements ModInitializer {
         try {
             BattlePassService bp = battlePassService;
             if (bp != null && dataManager != null) {
+                boolean anyClaimed = false;
                 for (UUID uuid : online) {
                     var season = dataManager.season(uuid);
                     if (season.dailyTasks != null) {
@@ -361,7 +362,8 @@ public class HaoJingBattlePassServer implements ModInitializer {
                             var progress = entry.getValue();
                             if (progress != null && progress.status() == com.haojing.battlepass.common.data.TaskStatus.COMPLETED
                                     && group.equals(chosen)) {
-                                bp.claimTaskReward(uuid, progress.taskId);
+                                var res = bp.claimTaskReward(uuid, progress.taskId);
+                                if (res.outcome() == BattlePassService.ClaimOutcome.OK) anyClaimed = true;
                             }
                         }
                     }
@@ -369,9 +371,17 @@ public class HaoJingBattlePassServer implements ModInitializer {
                         for (var entry : season.weeklyTasks.entrySet()) {
                             var progress = entry.getValue();
                             if (progress != null && progress.status() == com.haojing.battlepass.common.data.TaskStatus.COMPLETED) {
-                                bp.claimTaskReward(uuid, progress.taskId);
+                                var res = bp.claimTaskReward(uuid, progress.taskId);
+                                if (res.outcome() == BattlePassService.ClaimOutcome.OK) anyClaimed = true;
                             }
                         }
+                    }
+                }
+                if (anyClaimed && syncService != null) {
+                    for (UUID uuid : online) {
+                        syncService.markDirty(uuid, com.haojing.battlepass.server.net.SyncChannels.PLAYER);
+                        syncService.markDirty(uuid, com.haojing.battlepass.server.net.SyncChannels.TASKS);
+                        syncService.push(uuid);
                     }
                 }
             }

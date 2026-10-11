@@ -340,7 +340,11 @@ public final class ModNetworking {
 
         var season = dataManager.season(uuid);
 
-        // 只要组名合法就允许切换（快照已显示该组任务，说明 dailyTasks 里有）
+        // 一旦选定组，当天不能再换
+        if (season.chosenDailyGroup != null && !season.chosenDailyGroup.isEmpty()) {
+            return false;
+        }
+
         season.chosenDailyGroup = group;
         dataManager.markSeasonDirty(uuid);
         return true;
