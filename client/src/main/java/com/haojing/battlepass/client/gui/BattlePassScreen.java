@@ -226,6 +226,8 @@ public class BattlePassScreen extends Screen {
     private String dailyRerollGroup;
     private int[] dailyExemptBounds;
     private String dailyExemptGroup;
+    private int[][] dailyChooseBounds;
+    private String[] dailyChooseGroups;
 
     /** 任务名称悬浮 Tooltip。 */
     private void renderTaskTooltip(DrawContext context, int mouseX, int mouseY) {
@@ -307,6 +309,17 @@ public class BattlePassScreen extends Screen {
                         && mouseY >= dailyExemptBounds[1] && mouseY <= dailyExemptBounds[3]) {
                     ClientNetworking.sendAction(NetActions.ClientAction.EXEMPT, dailyExemptGroup);
                     return true;
+                }
+                if (dailyChooseBounds != null) {
+                    for (int i = 0; i < dailyChooseBounds.length; i++) {
+                        if (dailyChooseBounds[i] != null
+                                && mouseX >= dailyChooseBounds[i][0] && mouseX <= dailyChooseBounds[i][2]
+                                && mouseY >= dailyChooseBounds[i][1] && mouseY <= dailyChooseBounds[i][3]) {
+                            ClientNetworking.sendAction(NetActions.ClientAction.CHOOSE_DAILY_GROUP, dailyChooseGroups[i]);
+                            rebuild();
+                            return true;
+                        }
+                    }
                 }
             }
 
@@ -721,7 +734,7 @@ public class BattlePassScreen extends Screen {
 
             var lines = tasks.group(group);
             int cardH = 24 + lines.size() * 22 + (isChosen ? 30 : 0);
-            if (chosen.isEmpty()) cardH = 40;
+            if (chosen.isEmpty()) cardH = 24 + lines.size() * 22 + 26;
 
             drawCard(context, px, y, pw, cardH, borderColor);
             String status = isChosen ? "已选中" : (isLocked ? "已锁定" : "未选择");
@@ -769,6 +782,13 @@ public class BattlePassScreen extends Screen {
                 boolean hasCards = self.exemptCards > 0;
                 drawMiniButton(context, px + 60, btnLy, 52, 12,
                         hasCards ? "跳过" : "跳过(无卡)", hasCards);
+            } else if (chosen.isEmpty()) {
+                // 未选组：显示"选择本组"按钮
+                ly += 4;
+                String btnText = "选择本组";
+                int btnW = this.textRenderer.getWidth(btnText) + 16;
+                int btnX = px + pw - btnW - 10;
+                drawMiniButton(context, btnX, ly, btnW, 12, btnText, true);
             }
 
             y += cardH + 6;
@@ -1038,13 +1058,16 @@ public class BattlePassScreen extends Screen {
             ModSnapshots.Tasks tasks = ClientNetworking.state().tasks();
             String chosen = tasks.chosenGroup == null ? "" : tasks.chosenGroup;
             String[] groups = {"explore", "build", "general"};
+            dailyChooseBounds = new int[3][];
+            dailyChooseGroups = new String[3];
             int cy = y0;
-            for (String group : groups) {
+            for (int gi = 0; gi < groups.length; gi++) {
+                String group = groups[gi];
                 var lines = tasks.group(group);
                 boolean isChosen = group.equals(chosen);
                 boolean isLocked = !chosen.isEmpty() && !isChosen;
                 int cardH = 24 + lines.size() * 22 + (isChosen ? 30 : 0);
-                if (chosen.isEmpty()) cardH = 40;
+                if (chosen.isEmpty()) cardH = 24 + lines.size() * 22 + 26;
 
                 if (isChosen) {
                     int ly = cy + 20 + lines.size() * 22 + 4;
@@ -1064,6 +1087,11 @@ public class BattlePassScreen extends Screen {
                     dailyRerollGroup = null;
                     dailyExemptBounds = null;
                     dailyExemptGroup = null;
+                    if (chosen.isEmpty()) {
+                        int ly = cy + 20 + lines.size() * 22 + 4;
+                        dailyChooseBounds[gi] = new int[]{px + pw - 70, ly, px + pw - 10, ly + 12};
+                        dailyChooseGroups[gi] = group;
+                    }
                 }
                 cy += cardH + 6;
             }
