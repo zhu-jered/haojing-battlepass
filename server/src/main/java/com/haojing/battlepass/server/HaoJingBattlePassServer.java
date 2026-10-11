@@ -359,7 +359,7 @@ public class HaoJingBattlePassServer implements ModInitializer {
                         for (var entry : season.dailyTasks.entrySet()) {
                             String group = entry.getKey();
                             var progress = entry.getValue();
-                            if (progress != null && progress.status() == com.haojing.battlepass.server.task.TaskStatus.COMPLETED
+                            if (progress != null && progress.status() == com.haojing.battlepass.common.data.TaskStatus.COMPLETED
                                     && group.equals(chosen)) {
                                 bp.claimTaskReward(uuid, progress.taskId);
                             }
@@ -368,7 +368,7 @@ public class HaoJingBattlePassServer implements ModInitializer {
                     if (season.weeklyTasks != null) {
                         for (var entry : season.weeklyTasks.entrySet()) {
                             var progress = entry.getValue();
-                            if (progress != null && progress.status() == com.haojing.battlepass.server.task.TaskStatus.COMPLETED) {
+                            if (progress != null && progress.status() == com.haojing.battlepass.common.data.TaskStatus.COMPLETED) {
                                 bp.claimTaskReward(uuid, progress.taskId);
                             }
                         }
