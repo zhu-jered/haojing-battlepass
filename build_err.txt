@@ -1,0 +1,87 @@
+﻿To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :client
+Fabric Loom: 1.14.6
+
+> Configure project :server
+Fabric Loom: 1.14.6
+
+> Task :client:compileJava UP-TO-DATE
+
+> Task :server:compileJava
+.\gradlew.bat : C:\Users\14712\Desktop\haojingBP-DB\server\src\main\java\com\haojing\battlepass\server\HaoJingBattlePas
+sServer.java:382: 错误: 找不到符号
+所在位置 行:1 字符: 53
++ ... top\haojingBP-DB"; .\gradlew.bat compileJava --no-daemon 2>&1 | Out-F ...
++                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\14712\...:382: 错误: 找不到符号:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                        syncService.markDirty(player.getUuid(), com.haojing.battlepass.server.net.SyncChannels.PLAYER);
+                                                                                                 ^
+  符号:   类 SyncChannels
+  位置: 程序包 com.haojing.battlepass.server.net
+C:\Users\14712\Desktop\haojingBP-DB\server\src\main\java\com\haojing\battlepass\server\HaoJingBattlePassServer.java:383
+: 错误: 找不到符号
+                        syncService.markDirty(player.getUuid(), com.haojing.battlepass.server.net.SyncChannels.TASKS);
+                                                                                                 ^
+  符号:   类 SyncChannels
+  位置: 程序包 com.haojing.battlepass.server.net
+C:\Users\14712\Desktop\haojingBP-DB\server\src\main\java\com\haojing\battlepass\server\HaoJingBattlePassServer.java:384
+: 错误: 找不到符号
+                        syncService.push(player, com.haojing.battlepass.server.net.SyncChannels.PLAYER);
+                                                                                  ^
+  符号:   类 SyncChannels
+  位置: 程序包 com.haojing.battlepass.server.net
+C:\Users\14712\Desktop\haojingBP-DB\server\src\main\java\com\haojing\battlepass\server\HaoJingBattlePassServer.java:385
+: 错误: 找不到符号
+                        syncService.push(player, com.haojing.battlepass.server.net.SyncChannels.TASKS);
+                                                                                  ^
+  符号:   类 SyncChannels
+  位置: 程序包 com.haojing.battlepass.server.net
+4 个错误
+
+> Task :server:compileJava FAILED
+
+[Incubating] Problems report is available at: file:///C:/Users/14712/Desktop/haojingBP-DB/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':server:compileJava'.
+> Compilation failed; see the compiler output below.
+  C:\Users\14712\Desktop\haojingBP-DB\server\src\main\java\com\haojing\battlepass\server\HaoJingBattlePassServer.java:3
+82: 错误: 找不到符号
+                          syncService.markDirty(player.getUuid(), com.haojing.battlepass.server.net.SyncChannels.PLAYER
+);
+                                                                                                   ^
+    符号:   类 SyncChannels
+    位置: 程序包 com.haojing.battlepass.server.net
+  C:\Users\14712\Desktop\haojingBP-DB\server\src\main\java\com\haojing\battlepass\server\HaoJingBattlePassServer.java:3
+83: 错误: 找不到符号
+                          syncService.markDirty(player.getUuid(), com.haojing.battlepass.server.net.SyncChannels.TASKS)
+;
+                                                                                                   ^
+    符号:   类 SyncChannels
+    位置: 程序包 com.haojing.battlepass.server.net
+  C:\Users\14712\Desktop\haojingBP-DB\server\src\main\java\com\haojing\battlepass\server\HaoJingBattlePassServer.java:3
+84: 错误: 找不到符号
+                          syncService.push(player, com.haojing.battlepass.server.net.SyncChannels.PLAYER);
+                                                                                    ^
+    符号:   类 SyncChannels
+    位置: 程序包 com.haojing.battlepass.server.net
+  C:\Users\14712\Desktop\haojingBP-DB\server\src\main\java\com\haojing\battlepass\server\HaoJingBattlePassServer.java:3
+85: 错误: 找不到符号
+                          syncService.push(player, com.haojing.battlepass.server.net.SyncChannels.TASKS);
+                                                                                    ^
+    符号:   类 SyncChannels
+    位置: 程序包 com.haojing.battlepass.server.net
+  4 个错误
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to generate a Build Scan (powered by Develocity).
+
+BUILD FAILED in 16s
+2 actionable tasks: 1 executed, 1 up-to-date
