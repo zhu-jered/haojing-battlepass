@@ -739,9 +739,9 @@ public class BattlePassScreen extends Screen {
                 boolean claimed = "CLAIMED".equals(line.status);
                 boolean completed = "COMPLETED".equals(line.status);
                 String name = Text.translatableWithFallback("haojing_battlepass.task." + line.id, line.name).getString();
-                if (claimed) name = "§7[已跳过] " + name;
+                if (claimed) name = "§a[已领取] " + name;
                 else if (completed) name = "§a[已完成] " + name;
-                String progressStr = claimed ? "§7已跳过" : (line.progress + "/" + line.target);
+                String progressStr = claimed ? "§a已领取" : (line.progress + "/" + line.target);
                 int nameColor = claimed ? 0xFF666666 : (isLocked ? dimColor : 0xFFFFFFFF);
                 context.drawTextWithShadow(this.textRenderer, name, px + 10, ly, nameColor);
                 int pw2 = this.textRenderer.getWidth(progressStr);
