@@ -1035,7 +1035,7 @@ public class BattlePassScreen extends Screen {
                 var lines = tasks.group(group);
                 boolean isChosen = group.equals(chosen);
                 boolean isLocked = !chosen.isEmpty() && !isChosen;
-                int cardH = 24 + lines.size() * 22 + (isChosen ? 30 : 26);
+                int cardH = 24 + lines.size() * 22 + 30;
 
                 if (isChosen) {
                     int ly = cy + 20 + lines.size() * 22 + 4;
