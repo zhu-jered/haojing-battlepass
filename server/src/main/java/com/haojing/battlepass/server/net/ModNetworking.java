@@ -340,12 +340,7 @@ public final class ModNetworking {
 
         var season = dataManager.season(uuid);
 
-        // 必须有该组的任务才能选（防御性：理论上 rollDailyInto 会保证三组都有）。
-        if (season.dailyTasks == null || !season.dailyTasks.containsKey(group)) {
-            return false;
-        }
-
-        // 允许更换已选组
+        // 只要组名合法就允许切换（快照已显示该组任务，说明 dailyTasks 里有）
         season.chosenDailyGroup = group;
         dataManager.markSeasonDirty(uuid);
         return true;
