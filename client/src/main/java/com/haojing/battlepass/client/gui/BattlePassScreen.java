@@ -224,14 +224,14 @@ public class BattlePassScreen extends Screen {
     private final java.util.List<String> titleClickIds = new java.util.ArrayList<>();
     private int[][] dailyChooseBounds;
     private String[] dailyChooseGroups;
-    private int lastRevision = -1;
+    private long lastUpdateMillis = -1;
 
     @Override
     public void tick() {
         super.tick();
-        int rev = ClientNetworking.state().revision();
-        if (rev != lastRevision) {
-            lastRevision = rev;
+        long upd = ClientNetworking.state().lastUpdateMillis();
+        if (upd != lastUpdateMillis) {
+            lastUpdateMillis = upd;
             clearChildren();
             init();
         }
