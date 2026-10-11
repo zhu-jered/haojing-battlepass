@@ -222,12 +222,20 @@ public class BattlePassScreen extends Screen {
     private int[] communityBounds;
     private final java.util.List<int[]> titleClickBounds = new java.util.ArrayList<>();
     private final java.util.List<String> titleClickIds = new java.util.ArrayList<>();
-    private int[] dailyRerollBounds;
-    private String dailyRerollGroup;
-    private int[] dailyExemptBounds;
-    private String dailyExemptGroup;
     private int[][] dailyChooseBounds;
     private String[] dailyChooseGroups;
+    private int lastRevision = -1;
+
+    @Override
+    public void tick() {
+        super.tick();
+        int rev = ClientNetworking.state().revision();
+        if (rev != lastRevision) {
+            lastRevision = rev;
+            clearChildren();
+            init();
+        }
+    }
 
     /** 任务名称悬浮 Tooltip。 */
     private void renderTaskTooltip(DrawContext context, int mouseX, int mouseY) {
@@ -760,6 +768,13 @@ public class BattlePassScreen extends Screen {
 
             if (isChosen) {
                 ly += 4;
+            } else if (isLocked) {
+                // 已锁定但可切换
+                ly += 4;
+                String btnText = "更换本组";
+                int btnW = this.textRenderer.getWidth(btnText) + 16;
+                int btnX = px + pw - btnW - 10;
+                drawMiniButton(context, btnX, ly, btnW, 12, btnText, true);
             } else if (chosen.isEmpty()) {
                 // 未选组：显示"选择本组"按钮
                 ly += 4;
@@ -1044,8 +1059,7 @@ public class BattlePassScreen extends Screen {
                 var lines = tasks.group(group);
                 boolean isChosen = group.equals(chosen);
                 boolean isLocked = !chosen.isEmpty() && !isChosen;
-                int cardH = 24 + lines.size() * 22 + (isChosen ? 30 : 0);
-                if (chosen.isEmpty()) cardH = 24 + lines.size() * 22 + 26;
+                int cardH = 24 + lines.size() * 22 + (isChosen ? 30 : 26);
 
                 if (isChosen) {
                     int ly = cy + 20 + lines.size() * 22 + 4;
@@ -1062,13 +1076,10 @@ public class BattlePassScreen extends Screen {
                     exempt.active = hasCards;
                     addDrawableChild(exempt);
                 } else {
-                    dailyRerollBounds = null;
-                    dailyRerollGroup = null;
-                    dailyExemptBounds = null;
-                    dailyExemptGroup = null;
-                    if (chosen.isEmpty()) {
+                    if (!chosen.isEmpty() || chosen.isEmpty()) {
+                        // 未选组 或 已锁定组：都显示"选择/更换本组"按钮
                         int ly = cy + 20 + lines.size() * 22 + 4;
-                        dailyChooseBounds[gi] = new int[]{px + pw - 70, ly, px + pw - 10, ly + 12};
+                        dailyChooseBounds[gi] = new int[]{px + pw - 80, ly, px + pw - 10, ly + 12};
                         dailyChooseGroups[gi] = group;
                     }
                 }
