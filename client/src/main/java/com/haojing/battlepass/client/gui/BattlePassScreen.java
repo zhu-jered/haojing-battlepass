@@ -304,19 +304,6 @@ public class BattlePassScreen extends Screen {
                 }
             }
 
-            // 每日：选择本组按钮（手动命中检测）
-            if (tab == 1 && dailyChooseBounds != null) {
-                for (int i = 0; i < dailyChooseBounds.length; i++) {
-                    if (dailyChooseBounds[i] != null
-                            && mouseX >= dailyChooseBounds[i][0] && mouseX <= dailyChooseBounds[i][2]
-                            && mouseY >= dailyChooseBounds[i][1] && mouseY <= dailyChooseBounds[i][3]) {
-                        ClientNetworking.sendAction(NetActions.ClientAction.CHOOSE_DAILY_GROUP, dailyChooseGroups[i]);
-                        rebuild();
-                        return true;
-                    }
-                }
-            }
-
             // 每日/每周：点击任务条目（非按钮区）切换选中。
             if (tab == 1 || tab == 2) {
                 int firstRow = page * layout.rowsPerPage();
@@ -768,20 +755,9 @@ public class BattlePassScreen extends Screen {
 
             if (isChosen) {
                 ly += 4;
-            } else if (isLocked) {
-                // 已锁定但可切换
+            } else if (chosen.isEmpty() || isLocked) {
+                // 未选组/已锁定组：按钮由 ButtonWidget 统一放置，这里不画
                 ly += 4;
-                String btnText = "更换本组";
-                int btnW = this.textRenderer.getWidth(btnText) + 16;
-                int btnX = px + pw - btnW - 10;
-                drawMiniButton(context, btnX, ly, btnW, 12, btnText, true);
-            } else if (chosen.isEmpty()) {
-                // 未选组：显示"选择本组"按钮
-                ly += 4;
-                String btnText = "选择本组";
-                int btnW = this.textRenderer.getWidth(btnText) + 16;
-                int btnX = px + pw - btnW - 10;
-                drawMiniButton(context, btnX, ly, btnW, 12, btnText, true);
             }
 
             y += cardH + 6;
@@ -1076,12 +1052,14 @@ public class BattlePassScreen extends Screen {
                     exempt.active = hasCards;
                     addDrawableChild(exempt);
                 } else {
-                    if (!chosen.isEmpty() || chosen.isEmpty()) {
-                        // 未选组 或 已锁定组：都显示"选择/更换本组"按钮
-                        int ly = cy + 20 + lines.size() * 22 + 4;
-                        dailyChooseBounds[gi] = new int[]{px + pw - 80, ly, px + pw - 10, ly + 12};
-                        dailyChooseGroups[gi] = group;
-                    }
+                    // 未选组或已锁定组：放置"选择本组"/"更换本组"按钮
+                    int ly = cy + 20 + lines.size() * 22 + 4;
+                    String btnText = chosen.isEmpty() ? "选择本组" : "更换本组";
+                    int btnW = 70;
+                    ButtonWidget choose = ButtonWidget.builder(Text.literal(btnText), w -> {
+                        ClientNetworking.sendAction(NetActions.ClientAction.CHOOSE_DAILY_GROUP, group);
+                    }).dimensions(px + pw - btnW - 10, ly, btnW, 12).build();
+                    addDrawableChild(choose);
                 }
                 cy += cardH + 6;
             }
