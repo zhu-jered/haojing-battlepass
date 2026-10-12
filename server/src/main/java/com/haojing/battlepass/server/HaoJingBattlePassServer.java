@@ -43,6 +43,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.LocalTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -99,6 +101,10 @@ public class HaoJingBattlePassServer implements ModInitializer {
     private static final Random RANDOM = new Random();
 
     private static int maintenanceCounter;
+
+    /** 每日4点重启倒计时（-1=未开始，0=立即stop，10..1=倒计时播报） */
+    private static volatile int restartCountdown = -1;
+    private static volatile String restartCountdownDate = "";
 
     public static PlayerDataManager data() {
         return dataManager;
@@ -442,6 +448,45 @@ public class HaoJingBattlePassServer implements ModInitializer {
             } catch (RuntimeException e) {
                 LOGGER.warn("{} 状态同步出现异常（本轮跳过）：{}", ModConstants.LOG_PREFIX, e.toString());
             }
+        }
+
+        // 每日4点（北京时间）自动重启，重启前10秒全服播报
+        try {
+            ZonedDateTime now = TimeUtil.now();
+            LocalTime lt = now.toLocalTime();
+            String today = TimeUtil.dateKey(now);
+
+            // 进入03:59:50，启动倒计时
+            if (restartCountdown < 0 && lt.getHour() == 3 && lt.getMinute() == 59 && lt.getSecond() >= 50) {
+                restartCountdown = 10;
+                restartCountdownDate = today;
+            }
+
+            // 倒计时进行中
+            if (restartCountdown > 0) {
+                int left = restartCountdown;
+                String msg = "§e[镐京战令] 服务器将在 " + left + " 秒后重启（每日4:00维护）...";
+                server.getPlayerManager().broadcast(Text.literal(msg), false);
+                LOGGER.info("{} 自动重启倒计时：{} 秒", ModConstants.LOG_PREFIX, left);
+                restartCountdown--;
+                if (restartCountdown == 0) {
+                    LOGGER.info("{} 到达4:00，正在关闭服务器以重启", ModConstants.LOG_PREFIX);
+                    server.getPlayerManager().broadcast(
+                        Text.literal("§c服务器即将重启，请重新连接"), false);
+                    // 先落盘所有数据再stop
+                    if (dataManager != null) {
+                        try { dataManager.flushDirty(); } catch (RuntimeException ignored) {}
+                    }
+                    server.stop(false);
+                }
+            }
+
+            // 跨天重置状态（防止异常后第二天不触发）
+            if (!today.equals(restartCountdownDate) && restartCountdown <= 0) {
+                restartCountdown = -1;
+            }
+        } catch (RuntimeException e) {
+            LOGGER.warn("{} 自动重启调度出现异常（本轮跳过）：{}", ModConstants.LOG_PREFIX, e.toString());
         }
     }
 
