@@ -92,20 +92,28 @@ public final class BattlePassCommand {
                 .then(CommandManager.literal("cape")
                         .requires(CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK))
                         .then(CommandManager.literal("give")
-                                .then(CommandManager.argument("player", net.minecraft.command.argument.EntityArgumentType.player())
+                                .then(CommandManager.argument("targets", net.minecraft.command.argument.EntityArgumentType.players())
                                         .then(CommandManager.argument("capeId", StringArgumentType.string())
                                                 .executes(ctx -> {
-                                                    ServerPlayerEntity target = net.minecraft.command.argument.EntityArgumentType.getPlayer(ctx, "player");
+                                                    var targets = net.minecraft.command.argument.EntityArgumentType.getPlayers(ctx, "targets");
                                                     String capeId = StringArgumentType.getString(ctx, "capeId");
-                                                    return giveCape(ctx.getSource(), target, capeId);
+                                                    int n = 0;
+                                                    for (ServerPlayerEntity target : targets) {
+                                                        n += giveCape(ctx.getSource(), target, capeId);
+                                                    }
+                                                    return n;
                                                 }))))
                         .then(CommandManager.literal("revoke")
-                                .then(CommandManager.argument("player", net.minecraft.command.argument.EntityArgumentType.player())
+                                .then(CommandManager.argument("targets", net.minecraft.command.argument.EntityArgumentType.players())
                                         .then(CommandManager.argument("capeId", StringArgumentType.string())
                                                 .executes(ctx -> {
-                                                    ServerPlayerEntity target = net.minecraft.command.argument.EntityArgumentType.getPlayer(ctx, "player");
+                                                    var targets = net.minecraft.command.argument.EntityArgumentType.getPlayers(ctx, "targets");
                                                     String capeId = StringArgumentType.getString(ctx, "capeId");
-                                                    return revokeCape(ctx.getSource(), target, capeId);
+                                                    int n = 0;
+                                                    for (ServerPlayerEntity target : targets) {
+                                                        n += revokeCape(ctx.getSource(), target, capeId);
+                                                    }
+                                                    return n;
                                                 }))))));
     }
 
