@@ -176,6 +176,52 @@ public final class ModPayloads {
         }
     }
 
+    /**
+     * 披风贴图数据（S2C）。服务端把管理员预设的披风 PNG 字节下发给客户端注册为纹理。
+     * 披风贴图很小（64×32 PNG），整包直传即可，不需要分片。
+     *
+     * @param capeId 披风 ID
+     * @param png    PNG 文件原始字节；客户端用 NativeImage.read 解码
+     */
+    public record CapeTexture(String capeId, byte[] png) implements CustomPayload {
+
+        public static final CustomPayload.Id<CapeTexture> ID =
+                new CustomPayload.Id<>(ModNetworkingIds.CAPE_TEXTURE_S2C);
+
+        public static final PacketCodec<PacketByteBuf, CapeTexture> CODEC = PacketCodec.tuple(
+                PacketCodecs.string(64), CapeTexture::capeId,
+                PacketCodecs.byteArray(131072), CapeTexture::png,
+                CapeTexture::new);
+
+        @Override
+        public CustomPayload.Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    /**
+     * 在线玩家披风穿戴广播（S2C）。玩家穿戴/卸下披风或上下线时同步给所有客户端，
+     * 用于在其他玩家背后渲染对应披风。
+     *
+     * @param playerUuid 被广播玩家 UUID
+     * @param capeId     披风 ID；空串表示该玩家当前未穿戴披风
+     */
+    public record CapeBroadcast(String playerUuid, String capeId) implements CustomPayload {
+
+        public static final CustomPayload.Id<CapeBroadcast> ID =
+                new CustomPayload.Id<>(ModNetworkingIds.CAPE_BROADCAST_S2C);
+
+        public static final PacketCodec<PacketByteBuf, CapeBroadcast> CODEC = PacketCodec.tuple(
+                PacketCodecs.string(64), CapeBroadcast::playerUuid,
+                PacketCodecs.string(64), CapeBroadcast::capeId,
+                CapeBroadcast::new);
+
+        @Override
+        public CustomPayload.Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
     // ------------------------------------------------------------------
     // play 阶段：客户端请求（C2S）
     // ------------------------------------------------------------------

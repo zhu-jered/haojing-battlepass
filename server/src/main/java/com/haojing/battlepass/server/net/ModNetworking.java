@@ -8,6 +8,7 @@ import com.haojing.battlepass.common.net.ModPayloads;
 import com.haojing.battlepass.common.net.NetActions;
 import com.haojing.battlepass.common.net.SyncChannels;
 import com.haojing.battlepass.server.battlepass.BattlePassService;
+import com.haojing.battlepass.server.cape.CapeManager;
 import com.haojing.battlepass.server.data.PlayerDataManager;
 import com.haojing.battlepass.server.shop.ShopManager;
 import com.haojing.battlepass.server.task.TaskAssignmentService;
@@ -52,6 +53,9 @@ public final class ModNetworking {
     private final PlayerDataManager dataManager;
     private final C2SGuard guard = new C2SGuard();
 
+    /** 披风管理器（可选，由装配处注入）。 */
+    private CapeManager capeManager;
+
     public ModNetworking(HandshakeService handshakeService, PlayerSyncService syncService,
                          ServerAdminActions adminActions, BattlePassService battlePassService,
                          TaskAssignmentService taskAssignmentService, ShopManager shopManager,
@@ -63,6 +67,11 @@ public final class ModNetworking {
         this.taskAssignmentService = taskAssignmentService;
         this.shopManager = shopManager;
         this.dataManager = dataManager;
+    }
+
+    /** 注入披风管理器。 */
+    public void setCapeManager(CapeManager manager) {
+        this.capeManager = manager;
     }
 
     /** 注册全部包类型与监听。应在服务端初始化时调用一次。 */
@@ -104,6 +113,11 @@ public final class ModNetworking {
             } catch (RuntimeException ignore) {
                 // 称号广播失败不影响玩家进服。
             }
+            // 披风：给新玩家发送所有在线玩家已穿戴披风的贴图与穿戴状态；并把自己的披风广播出去。
+            try {
+                sendCapeStateOnJoin(server, handler.player);
+            } catch (RuntimeException ignore) {
+            }
         });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
@@ -112,6 +126,11 @@ public final class ModNetworking {
             // 玩家离开：清掉头顶称号。
             try {
                 broadcastToAll(server, handler.getPlayer().getUuid().toString(), "");
+            } catch (RuntimeException ignore) {
+            }
+            // 清掉披风穿戴状态。
+            try {
+                broadcastCapeToAll(server, handler.getPlayer().getUuid().toString(), "");
             } catch (RuntimeException ignore) {
             }
         });
@@ -251,6 +270,25 @@ public final class ModNetworking {
                     broadcastToAll(server, player.getUuid().toString(), arg);
                 }
                 break;
+            case EQUIP_CAPE: {
+                boolean capeOk = equipCape(player, arg);
+                reply(player, capeOk, capeOk
+                        ? (arg.isEmpty() ? "haojing_battlepass.action.cape.unequip"
+                                         : "haojing_battlepass.action.cape.equip")
+                        : "haojing_battlepass.action.cape.fail");
+                if (capeOk && server != null) {
+                    // 先把该披风贴图发给所有在线玩家（没装过的客户端），再广播穿戴状态。
+                    if (!arg.isEmpty()) {
+                        byte[] bytes = capeManager == null ? null : capeManager.textureBytes(arg);
+                        if (bytes != null) {
+                            sendCapeTextureToAll(server, arg, bytes);
+                        }
+                    }
+                    broadcastCapeToAll(server, player.getUuid().toString(), arg);
+                    syncService.markDirty(player.getUuid(), SyncChannels.CAPES);
+                }
+                break;
+            }
             case TOGGLE_CHAT_TITLE: {
                 var global = dataManager.global(player.getUuid());
                 global.chatTitleVisible = !global.chatTitleVisible;
@@ -412,6 +450,95 @@ public final class ModNetworking {
                     ServerPlayNetworking.send(p, payload);
                 }
             } catch (RuntimeException ignore) {
+            }
+        }
+    }
+
+    /**
+     * 穿戴/卸下披风。
+     *
+     * <p>权限校验：非空 arg 必须在玩家已解锁集合内，且在披风目录里存在定义。
+     */
+    private boolean equipCape(ServerPlayerEntity player, String capeId) {
+        if (dataManager == null) {
+            return false;
+        }
+        var global = dataManager.global(player.getUuid());
+
+        if (capeId == null || capeId.isEmpty()) {
+            global.equippedCape = "";
+            dataManager.markGlobalDirty(player.getUuid());
+            return true;
+        }
+
+        if (global.unlockedCapes == null || !global.unlockedCapes.contains(capeId)) {
+            return false;
+        }
+        if (capeManager == null || capeManager.byId(capeId) == null) {
+            return false;
+        }
+
+        global.equippedCape = capeId;
+        dataManager.markGlobalDirty(player.getUuid());
+        return true;
+    }
+
+    /** 把披风穿戴状态广播给全服客户端。 */
+    private static void broadcastCapeToAll(MinecraftServer server, String uuid, String capeId) {
+        if (server == null) {
+            return;
+        }
+        ModPayloads.CapeBroadcast payload = new ModPayloads.CapeBroadcast(uuid, capeId == null ? "" : capeId);
+        for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
+            try {
+                if (ServerPlayNetworking.canSend(p, ModPayloads.CapeBroadcast.ID)) {
+                    ServerPlayNetworking.send(p, payload);
+                }
+            } catch (RuntimeException ignore) {
+            }
+        }
+    }
+
+    /** 把披风 PNG 字节发给全服客户端（贴图很小，整包直传）。 */
+    private static void sendCapeTextureToAll(MinecraftServer server, String capeId, byte[] bytes) {
+        ModPayloads.CapeTexture payload = new ModPayloads.CapeTexture(capeId, bytes);
+        for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
+            try {
+                if (ServerPlayNetworking.canSend(p, ModPayloads.CapeTexture.ID)) {
+                    ServerPlayNetworking.send(p, payload);
+                }
+            } catch (RuntimeException ignore) {
+            }
+        }
+    }
+
+    /**
+     * 新玩家进服时：把所有在线玩家已穿戴的披风贴图与穿戴状态发给他。
+     * 同时把新玩家自己的披风状态广播出去。
+     */
+    private void sendCapeStateOnJoin(MinecraftServer server, ServerPlayerEntity newPlayer) {
+        // 1) 把新玩家自己的披风广播给全服（其他客户端要在他背后画披风）
+        String ownCape = dataManager == null ? ""
+                : String.valueOf(dataManager.global(newPlayer.getUuid()).equippedCape);
+        broadcastCapeToAll(server, newPlayer.getUuid().toString(), ownCape);
+
+        // 2) 把其他在线玩家的披风贴图（若没发过）+ 穿戴状态推给新玩家
+        for (ServerPlayerEntity online : server.getPlayerManager().getPlayerList()) {
+            if (online == newPlayer) {
+                continue;
+            }
+            String capeId = dataManager == null ? ""
+                    : String.valueOf(dataManager.global(online.getUuid()).equippedCape);
+            if (capeId.isEmpty()) {
+                continue;
+            }
+            byte[] bytes = capeManager == null ? null : capeManager.textureBytes(capeId);
+            if (bytes != null && ServerPlayNetworking.canSend(newPlayer, ModPayloads.CapeTexture.ID)) {
+                ServerPlayNetworking.send(newPlayer, new ModPayloads.CapeTexture(capeId, bytes));
+            }
+            if (ServerPlayNetworking.canSend(newPlayer, ModPayloads.CapeBroadcast.ID)) {
+                ServerPlayNetworking.send(newPlayer,
+                        new ModPayloads.CapeBroadcast(online.getUuid().toString(), capeId));
             }
         }
     }

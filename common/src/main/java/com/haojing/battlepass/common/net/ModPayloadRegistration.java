@@ -55,6 +55,8 @@ public final class ModPayloadRegistration {
         register(PayloadTypeRegistry.playS2C(), ModPayloads.OpenPanel.ID, ModPayloads.OpenPanel.CODEC);
         register(PayloadTypeRegistry.playS2C(), ModPayloads.ActionResult.ID, ModPayloads.ActionResult.CODEC);
         register(PayloadTypeRegistry.playS2C(), ModPayloads.TitleBroadcast.ID, ModPayloads.TitleBroadcast.CODEC);
+        register(PayloadTypeRegistry.playS2C(), ModPayloads.CapeTexture.ID, ModPayloads.CapeTexture.CODEC);
+        register(PayloadTypeRegistry.playS2C(), ModPayloads.CapeBroadcast.ID, ModPayloads.CapeBroadcast.CODEC);
         register(PayloadTypeRegistry.playS2C(), ModPayloads.ConfigFileContent.ID, ModPayloads.ConfigFileContent.CODEC);
     }
 

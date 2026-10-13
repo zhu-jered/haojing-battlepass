@@ -244,6 +244,31 @@ public final class ModSnapshots {
         public List<String> milestones = new ArrayList<>();
     }
 
+    /** 披风衣柜（纯装饰：已解锁列表、当前穿戴、全服定义）。 */
+    public static class Capes {
+
+        /** 当前穿戴的披风 ID；空串表示未穿戴。 */
+        public String equipped = "";
+        /** 玩家已解锁的披风 ID 列表。 */
+        public List<String> unlocked = new ArrayList<>();
+        /** 全服全部披风定义（含未解锁），用于 GUI 悬浮提示与未解锁灰显。 */
+        public List<CapeDef> definitions = new ArrayList<>();
+    }
+
+    /** 一条披风的展示定义（从 capes.json 下发）。纯装饰，不含任何属性。 */
+    public static class CapeDef {
+
+        public String id = "";
+        /** 显示名。 */
+        public String name = "";
+        /** 自定义描述文字。 */
+        public String description = "";
+        /** 获取途径说明（例如 "战令 25 级奖励"）。 */
+        public String acquireHint = "";
+        /** 贴图文件名（服务端据此定位 PNG，客户端不直接读路径）。 */
+        public String textureFile = "";
+    }
+
     /** 管理面板快照（§9：九类可编辑项 + 状态概览）。 */
     public static class Admin {
 

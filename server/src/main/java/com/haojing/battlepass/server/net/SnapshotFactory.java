@@ -27,6 +27,8 @@ import com.haojing.battlepass.server.task.TaskPoolManager;
 import com.haojing.battlepass.server.time.TimeUtil;
 import com.haojing.battlepass.server.title.TitleDefinition;
 import com.haojing.battlepass.server.title.TitleManager;
+import com.haojing.battlepass.server.cape.CapeDefinition;
+import com.haojing.battlepass.server.cape.CapeManager;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -70,6 +72,9 @@ public final class SnapshotFactory {
     /** 随机事件运行时服务（可选，由装配处注入）。 */
     private com.haojing.battlepass.server.event.RandomEventService randomEventService;
 
+    /** 披风管理器（可选，由装配处注入）。 */
+    private CapeManager capeManager;
+
     public SnapshotFactory(PlayerDataManager dataManager, ConfigManager configManager, StoragePaths paths,
                            TaskPoolManager taskPoolManager, LevelRewardManager levelRewardManager,
                            ShopManager shopManager, EggManager eggManager, RedeemCodeManager redeemCodeManager,
@@ -106,6 +111,11 @@ public final class SnapshotFactory {
     /** 注入随机事件运行时服务（首页展示事件状态用）。 */
     public void setRandomEventService(com.haojing.battlepass.server.event.RandomEventService service) {
         this.randomEventService = service;
+    }
+
+    /** 注入披风管理器（衣柜快照用）。 */
+    public void setCapeManager(CapeManager manager) {
+        this.capeManager = manager;
     }
 
     /**
@@ -308,6 +318,38 @@ public final class SnapshotFactory {
                 out.color = def.color;
                 out.wrapPrefix = def.wrapPrefix;
                 out.wrapSuffix = def.wrapSuffix;
+                snapshot.definitions.add(out);
+            }
+        }
+
+        return snapshot;
+    }
+
+    /**
+     * 披风衣柜快照。
+     *
+     * @param playerUuid 玩家
+     * @return 快照
+     */
+    public ModSnapshots.Capes capes(UUID playerUuid) {
+        ModSnapshots.Capes snapshot = new ModSnapshots.Capes();
+        GlobalData global = dataManager.global(playerUuid);
+
+        snapshot.equipped = global.equippedCape == null ? "" : global.equippedCape;
+
+        if (global.unlockedCapes != null) {
+            snapshot.unlocked.addAll(global.unlockedCapes);
+            snapshot.unlocked.sort(Comparator.naturalOrder());
+        }
+
+        if (capeManager != null && capeManager.catalog() != null) {
+            for (CapeDefinition def : capeManager.catalog().all()) {
+                ModSnapshots.CapeDef out = new ModSnapshots.CapeDef();
+                out.id = def.id;
+                out.name = def.normalizedName();
+                out.description = def.description;
+                out.acquireHint = def.acquireHint;
+                out.textureFile = def.textureFile;
                 snapshot.definitions.add(out);
             }
         }

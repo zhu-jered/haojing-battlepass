@@ -30,6 +30,7 @@ public final class ClientBattlePassState {
 
     private volatile ModSnapshots.Titles titles = new ModSnapshots.Titles();
     private volatile ModSnapshots.Collection collection = new ModSnapshots.Collection();
+    private volatile ModSnapshots.Capes capes = new ModSnapshots.Capes();
     private volatile ModSnapshots.Admin admin;
 
     /** 每个通道最近一次收到的修订号（诊断用：界面能显示"数据到哪一步了"）。 */
@@ -99,6 +100,12 @@ public final class ClientBattlePassState {
 
             if (parsed != null) {
                 collection = (ModSnapshots.Collection) parsed;
+            }
+        } else if (SyncChannels.CAPES.equals(channel)) {
+            parsed = SyncFragments.fromJson(json, ModSnapshots.Capes.class);
+
+            if (parsed != null) {
+                capes = (ModSnapshots.Capes) parsed;
             }
         } else if (SyncChannels.ADMIN.equals(channel)) {
             parsed = SyncFragments.fromJson(json, ModSnapshots.Admin.class);
@@ -191,6 +198,11 @@ public final class ClientBattlePassState {
         return collection;
     }
 
+    /** @return 披风衣柜快照。 */
+    public ModSnapshots.Capes capes() {
+        return capes;
+    }
+
     /** @return 管理面板快照；没收到过时为 null。 */
     public ModSnapshots.Admin admin() {
         return admin;
@@ -209,6 +221,7 @@ public final class ClientBattlePassState {
         shop = new ModSnapshots.Shop();
         titles = new ModSnapshots.Titles();
         collection = new ModSnapshots.Collection();
+        capes = new ModSnapshots.Capes();
         admin = null;
         revisions.clear();
         updatedAt.clear();

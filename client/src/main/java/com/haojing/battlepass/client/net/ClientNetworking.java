@@ -5,6 +5,7 @@ import com.haojing.battlepass.common.net.ModPayloadRegistration;
 import com.haojing.battlepass.common.net.ModPayloads;
 import com.haojing.battlepass.common.net.NetActions;
 import com.haojing.battlepass.common.net.SyncChannels;
+import com.haojing.battlepass.client.cape.CapeTextureManager;
 import com.haojing.battlepass.client.gui.AdminPanelScreen;
 import com.haojing.battlepass.client.gui.BattlePassScreen;
 import net.fabricmc.api.EnvType;
@@ -116,6 +117,25 @@ public final class ClientNetworking {
                     }
                 }));
 
+        ClientPlayNetworking.registerGlobalReceiver(ModPayloads.CapeTexture.ID, (payload, context) ->
+                context.client().execute(() -> {
+                    try {
+                        CapeTextureManager.register(payload.capeId(), payload.png());
+                    } catch (Throwable t) {
+                        LOGGER.warn("{} 接收披风贴图失败：{}", ModConstants.LOG_PREFIX, t.toString());
+                    }
+                }));
+
+        ClientPlayNetworking.registerGlobalReceiver(ModPayloads.CapeBroadcast.ID, (payload, context) ->
+                context.client().execute(() -> {
+                    try {
+                        UUID uuid = UUID.fromString(payload.playerUuid());
+                        OnlineCapes.put(uuid, payload.capeId());
+                    } catch (IllegalArgumentException e) {
+                        // 非法 UUID 直接丢弃。
+                    }
+                }));
+
         // 配置文件内容回发：暂存到静态字段，管理面板轮询读取。
         ClientPlayNetworking.registerGlobalReceiver(ModPayloads.ConfigFileContent.ID, (payload, context) ->
                 context.client().execute(() -> {
@@ -126,6 +146,8 @@ public final class ClientNetworking {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             STATE.reset();
             OnlineTitles.clear();
+            OnlineCapes.clear();
+            CapeTextureManager.clear();
             firstReceives.clear();
         });
 

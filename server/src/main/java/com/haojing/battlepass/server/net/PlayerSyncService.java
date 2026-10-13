@@ -318,6 +318,8 @@ public final class PlayerSyncService {
                 return SyncFragments.toJson(snapshots.titles(playerUuid));
             case SyncChannels.COLLECTION:
                 return SyncFragments.toJson(snapshots.collection(playerUuid));
+            case SyncChannels.CAPES:
+                return SyncFragments.toJson(snapshots.capes(playerUuid));
             case SyncChannels.ADMIN:
                 return SyncFragments.toJson(snapshots.admin(onlineCount, storedCount, lastQuery));
             default:

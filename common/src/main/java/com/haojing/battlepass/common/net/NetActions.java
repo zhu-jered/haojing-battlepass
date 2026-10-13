@@ -44,7 +44,10 @@ public final class NetActions {
         CHOOSE_BRANCH("branch"),
 
         /** 选择本日要做的每日任务组：arg = explore / build / general。选完后其它组锁定。 */
-        CHOOSE_DAILY_GROUP("group");
+        CHOOSE_DAILY_GROUP("group"),
+
+        /** 穿戴披风：arg = 披风 ID（空串表示卸下）。 */
+        EQUIP_CAPE("");
 
         private final String argHint;
 

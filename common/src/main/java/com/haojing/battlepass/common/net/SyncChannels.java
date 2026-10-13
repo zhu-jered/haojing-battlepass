@@ -30,11 +30,14 @@ public final class SyncChannels {
     /** 收藏册（含已达成里程碑）。 */
     public static final String COLLECTION = "collection";
 
+    /** 披风衣柜（已解锁列表、当前穿戴、全服定义）。 */
+    public static final String CAPES = "capes";
+
     /** 管理面板配置快照（只有 OP 会收到）。 */
     public static final String ADMIN = "admin";
 
     /** 全部通道，供"进服全量同步"使用。 */
-    public static final List<String> ALL = List.of(PLAYER, TASKS, SHOP, TITLES, COLLECTION);
+    public static final List<String> ALL = List.of(PLAYER, TASKS, SHOP, TITLES, COLLECTION, CAPES);
 
     private SyncChannels() {
     }

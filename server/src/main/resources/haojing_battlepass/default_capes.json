@@ -1,0 +1,19 @@
+{
+  "_comment": "披风注册表：纯装饰，不提供任何属性/buff/生存加成。id 必须唯一；textureFile 指向 capes/ 目录下的 64×32 PNG；name/acquireHint 用于衣柜悬浮提示。修改后保存即热重载，无需重启。",
+  "capes": [
+    {
+      "id": "haojing_pioneer",
+      "name": "镐京开拓者披风",
+      "description": "战令征途的起点披风。",
+      "acquireHint": "战令 1 级奖励",
+      "textureFile": "haojing_pioneer.png"
+    },
+    {
+      "id": "haojing_nightwatch",
+      "name": "长夜守望披风",
+      "description": "长夜模式下守望者的披风。",
+      "acquireHint": "长夜模式活跃",
+      "textureFile": "haojing_nightwatch.png"
+    }
+  ]
+}

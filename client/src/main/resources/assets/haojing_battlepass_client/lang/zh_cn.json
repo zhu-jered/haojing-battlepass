@@ -322,5 +322,15 @@
   "haojing_battlepass.milestone.ms_xp_1m": "【全服里程碑】%s 已达成（实际 %s，奖励 %s 人）",
   "haojing_battlepass.milestone.ms_night_100h": "【全服里程碑】%s 已达成（实际 %s，奖励 %s 人）",
   "haojing_battlepass.milestone.ms_egg_100": "【全服里程碑】%s 已达成（实际 %s，奖励 %s 人）",
-  "haojing_battlepass.milestone.ms_break_percapita_2k": "【全服里程碑】%s 已达成（人均 %s，奖励 %s 人）"
+  "haojing_battlepass.milestone.ms_break_percapita_2k": "【全服里程碑】%s 已达成（人均 %s，奖励 %s 人）",
+
+  "haojing_battlepass.action.cape.equip": "已穿戴披风",
+  "haojing_battlepass.action.cape.unequip": "已卸下披风",
+  "haojing_battlepass.action.cape.fail": "披风穿戴失败",
+  "haojing_battlepass.gui.cape.wardrobe": "披风衣柜（纯装饰）",
+  "haojing_battlepass.gui.cape.current_none": "当前未穿戴披风",
+  "haojing_battlepass.gui.cape.equip": "穿戴",
+  "haojing_battlepass.gui.cape.unequip": "卸下披风",
+  "haojing_battlepass.gui.cape.equipped": "已穿戴",
+  "haojing_battlepass.gui.cape.locked": "未解锁"
 }

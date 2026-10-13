@@ -2,8 +2,10 @@ package com.haojing.battlepass.server.command;
 
 import com.haojing.battlepass.common.ModConstants;
 import com.haojing.battlepass.common.net.SyncChannels;
+import com.haojing.battlepass.server.HaoJingBattlePassServer;
 import com.haojing.battlepass.server.net.PlayerSyncService;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
@@ -32,6 +34,8 @@ public final class BattlePassCommand {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ModConstants.MOD_ID_SERVER);
 
+    private static volatile PlayerSyncService syncServiceRef;
+
     private BattlePassCommand() {
     }
 
@@ -46,6 +50,7 @@ public final class BattlePassCommand {
     }
 
     private static void registerCommands(CommandDispatcher<ServerCommandSource> dispatcher, PlayerSyncService syncService) {
+        syncServiceRef = syncService;
         dispatcher.register(CommandManager.literal("battlepass")
                 .executes(context -> {
                     // 服务端这一支只在"客户端没处理"时到达（例如控制台，或未安装客户端 Mod）。
@@ -82,6 +87,65 @@ public final class BattlePassCommand {
 
                             LOGGER.info("{} 管理员 {} 打开了管理面板", ModConstants.LOG_PREFIX, player.getName().getString());
                             return 1;
-                        })));
+                        }))
+                // ---- 披风发放/收回（OP 专用，纯装饰）----
+                .then(CommandManager.literal("cape")
+                        .requires(CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK))
+                        .then(CommandManager.literal("give")
+                                .then(CommandManager.argument("player", net.minecraft.command.argument.EntityArgumentType.player())
+                                        .then(CommandManager.argument("capeId", StringArgumentType.string())
+                                                .executes(ctx -> {
+                                                    ServerPlayerEntity target = net.minecraft.command.argument.EntityArgumentType.getPlayer(ctx, "player");
+                                                    String capeId = StringArgumentType.getString(ctx, "capeId");
+                                                    return giveCape(ctx.getSource(), target, capeId);
+                                                }))))
+                        .then(CommandManager.literal("revoke")
+                                .then(CommandManager.argument("player", net.minecraft.command.argument.EntityArgumentType.player())
+                                        .then(CommandManager.argument("capeId", StringArgumentType.string())
+                                                .executes(ctx -> {
+                                                    ServerPlayerEntity target = net.minecraft.command.argument.EntityArgumentType.getPlayer(ctx, "player");
+                                                    String capeId = StringArgumentType.getString(ctx, "capeId");
+                                                    return revokeCape(ctx.getSource(), target, capeId);
+                                                }))))));
+    }
+
+    /** 给玩家解锁一件披风（若已穿戴则同步下发贴图）。 */
+    private static int giveCape(ServerCommandSource source, ServerPlayerEntity target, String capeId) {
+        var data = HaoJingBattlePassServer.data();
+        if (data == null) {
+            source.sendError(Text.literal("战令数据层未就绪"));
+            return 0;
+        }
+        var global = data.global(target.getUuid());
+        boolean added = global.unlockCape(capeId);
+        data.markGlobalDirty(target.getUuid());
+        if (syncServiceRef != null) {
+            syncServiceRef.markDirty(target.getUuid(), SyncChannels.CAPES);
+            syncServiceRef.push(target, SyncChannels.CAPES);
+        }
+        source.sendFeedback(() -> Text.literal(added
+                ? ("已给 " + target.getName().getString() + " 解锁披风 " + capeId)
+                : (target.getName().getString() + " 已拥有披风 " + capeId)), true);
+        return 1;
+    }
+
+    /** 收回玩家一件披风。 */
+    private static int revokeCape(ServerCommandSource source, ServerPlayerEntity target, String capeId) {
+        var data = HaoJingBattlePassServer.data();
+        if (data == null) {
+            source.sendError(Text.literal("战令数据层未就绪"));
+            return 0;
+        }
+        var global = data.global(target.getUuid());
+        boolean removed = global.revokeCape(capeId);
+        data.markGlobalDirty(target.getUuid());
+        if (syncServiceRef != null) {
+            syncServiceRef.markDirty(target.getUuid(), SyncChannels.CAPES);
+            syncServiceRef.push(target, SyncChannels.CAPES);
+        }
+        source.sendFeedback(() -> Text.literal(removed
+                ? ("已收回 " + target.getName().getString() + " 的披风 " + capeId)
+                : (target.getName().getString() + " 并未解锁披风 " + capeId)), true);
+        return 1;
     }
 }

@@ -74,6 +74,17 @@ public class GlobalData {
     public boolean nametagTitleVisible = true;
 
     /**
+     * 已解锁的披风 ID 集合（需求：披风衣柜，纯装饰）。永久保留，随赛季不清零。
+     */
+    public Set<String> unlockedCapes = new LinkedHashSet<>();
+
+    /**
+     * 当前穿戴的披风 ID。空串表示未穿戴（使用原版默认披风/无披风）。
+     * 同一时间只能穿戴一件，服务端做权限校验。
+     */
+    public String equippedCape = "";
+
+    /**
      * 商店购买记录：商品 ID → 已购次数（需求文档 §9「商店定价」与限购判定）。
      *
      * <p>为什么放在永久数据里而不是赛季数据：星币是永久货币（§4），
@@ -157,5 +168,39 @@ public class GlobalData {
      */
     public boolean collect(String eggId) {
         return eggId != null && !eggId.isEmpty() && collection.add(eggId);
+    }
+
+    /**
+     * 记录一次披风解锁。
+     *
+     * @param capeId 披风 ID
+     * @return 本次调用是否产生了变化
+     */
+    public boolean unlockCape(String capeId) {
+        return capeId != null && !capeId.isEmpty() && unlockedCapes.add(capeId);
+    }
+
+    /**
+     * 收回披风解锁权限。
+     *
+     * @param capeId 披风 ID
+     * @return 本次调用是否产生了变化
+     */
+    public boolean revokeCape(String capeId) {
+        boolean removed = unlockedCapes != null && unlockedCapes.remove(capeId);
+        // 如果收回的是当前穿戴的披风，自动卸下
+        if (removed && capeId != null && capeId.equals(equippedCape)) {
+            equippedCape = "";
+        }
+        return removed;
+    }
+
+    /**
+     * @param capeId 披风 ID
+     * @return 是否已解锁
+     */
+    public boolean hasCape(String capeId) {
+        return capeId != null && !capeId.isEmpty()
+                && unlockedCapes != null && unlockedCapes.contains(capeId);
     }
 }

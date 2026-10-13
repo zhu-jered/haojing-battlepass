@@ -126,6 +126,16 @@ public final class StoragePaths {
         return configDir.resolve("titles.json");
     }
 
+    /** @return 披风配置（config/&lt;模组名&gt;/capes.json）。纯装饰，不含任何属性加成。 */
+    public Path capesConfigFile() {
+        return configDir.resolve("capes.json");
+    }
+
+    /** @return 披风贴图目录（config/&lt;模组名&gt;/capes/，管理员放 64×32 PNG）。 */
+    public Path capesDir() {
+        return configDir.resolve("capes");
+    }
+
     /**
      * @return 全服状态文件（data/&lt;模组名&gt;/state.json）。
      *

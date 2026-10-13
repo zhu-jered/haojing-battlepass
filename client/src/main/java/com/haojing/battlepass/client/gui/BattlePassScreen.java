@@ -1006,6 +1006,47 @@ public class BattlePassScreen extends Screen {
                 ly += 14;
             }
         }
+        y += h3 + 6;
+
+        // ---- 披风衣柜 ----
+        ModSnapshots.Capes capes = ClientNetworking.state().capes();
+        int defCount = capes.definitions == null ? 0 : capes.definitions.size();
+        int capeH = 24 + Math.max(1, defCount) * 18 + 6;
+        drawCard(context, px, y, pw, capeH, CARD_BORDER);
+        context.drawTextWithShadow(this.textRenderer, "披风衣柜（纯装饰）", px + 6, y + 5, dimColor);
+        String equipped = capes.equipped == null ? "" : capes.equipped;
+        if (equipped.isEmpty()) {
+            context.drawTextWithShadow(this.textRenderer, "当前未穿戴披风", px + 10, y + 18, dimColor);
+        } else {
+            String equippedName = capeDisplayName(capes, equipped);
+            context.drawTextWithShadow(this.textRenderer, "当前穿戴：" + equippedName, px + 10, y + 18, 0xFFFFAA00);
+        }
+        int ly = y + 34;
+        if (defCount == 0) {
+            context.drawTextWithShadow(this.textRenderer, "暂无披风", px + 10, ly, dimColor);
+        } else {
+            for (ModSnapshots.CapeDef def : capes.definitions) {
+                boolean unlocked = capes.unlocked != null && capes.unlocked.contains(def.id);
+                boolean isEquipped = def.id.equals(equipped);
+                int color = isEquipped ? 0xFFFFEE55 : (unlocked ? 0xFFFFFFFF : dimColor);
+                context.drawTextWithShadow(this.textRenderer,
+                        (unlocked ? "" : "§7[未解锁] ") + def.name,
+                        px + 10, ly, color);
+                ly += 18;
+            }
+        }
+    }
+
+    /** 在披风定义列表里按 id 取显示名；找不到返回 id 本身。 */
+    private String capeDisplayName(ModSnapshots.Capes capes, String id) {
+        if (capes.definitions != null) {
+            for (ModSnapshots.CapeDef d : capes.definitions) {
+                if (id.equals(d.id)) {
+                    return d.name == null || d.name.isEmpty() ? id : d.name;
+                }
+            }
+        }
+        return id;
     }
 
     /** 旧版行列表渲染（兜底用）。 */
@@ -1120,6 +1161,46 @@ public class BattlePassScreen extends Screen {
                 }).dimensions(px + pw - 50, cy + 8, 44, 12).build();
                 addDrawableChild(unequip);
                 cy += 34;
+            }
+        } else if (tab == 5) { // 收藏 / 披风衣柜
+            ModSnapshots.Collection col = ClientNetworking.state().collection();
+            ModSnapshots.Capes capes = ClientNetworking.state().capes();
+            // 与 renderCollectionCustom 完全一致的 y 步进
+            int y = y0 + 16;
+            int h1 = 24 + Math.max(1, col.seasonEggs.size()) * 14;
+            y += h1 + 6;
+            int h2 = 24 + Math.max(1, col.historySeasons.size()) * 14;
+            y += h2 + 6;
+            int h3 = 24 + Math.max(1, col.milestones.size()) * 14;
+            y += h3 + 6;
+
+            // 披风卡片：已穿戴者显示"卸下"，已解锁者显示"穿戴"，未解锁置灰
+            String equipped = capes.equipped == null ? "" : capes.equipped;
+            if (!equipped.isEmpty()) {
+                ButtonWidget off = ButtonWidget.builder(Text.literal("卸下披风"), w -> {
+                    ClientNetworking.sendAction(NetActions.ClientAction.EQUIP_CAPE, "");
+                    rebuild();
+                }).dimensions(px + pw - 70, y + 14, 64, 12)
+                        .tooltip(Tooltip.of(Text.literal("卸下当前披风，使用原版默认披风"))).build();
+                addDrawableChild(off);
+            }
+            int ly = y + 34;
+            if (capes.definitions != null) {
+                for (ModSnapshots.CapeDef def : capes.definitions) {
+                    boolean unlocked = capes.unlocked != null && capes.unlocked.contains(def.id);
+                    boolean isEquipped = def.id.equals(equipped);
+                    String btnText = isEquipped ? "已穿戴" : (unlocked ? "穿戴" : "未解锁");
+                    ButtonWidget equip = ButtonWidget.builder(Text.literal(btnText), w -> {
+                        ClientNetworking.sendAction(NetActions.ClientAction.EQUIP_CAPE, def.id);
+                        rebuild();
+                    }).dimensions(px + pw - 60, ly - 2, 54, 12)
+                            .tooltip(Tooltip.of(Text.literal(
+                                    def.name + (def.acquireHint == null || def.acquireHint.isEmpty()
+                                            ? "" : "\n获取途径：" + def.acquireHint)))).build();
+                    equip.active = unlocked && !isEquipped;
+                    addDrawableChild(equip);
+                    ly += 18;
+                }
             }
         }
     }

@@ -94,6 +94,7 @@ public class HaoJingBattlePassServer implements ModInitializer {
     private static volatile MilestoneManager milestoneManager;
     private static volatile MilestoneService milestoneService;
     private static volatile TitleManager titleManager;
+    private static volatile com.haojing.battlepass.server.cape.CapeManager capeManager;
     private static volatile com.haojing.battlepass.server.net.ModNetworking networking;
     private static volatile com.haojing.battlepass.server.net.PlayerSyncService syncService;
 
@@ -339,6 +340,12 @@ public class HaoJingBattlePassServer implements ModInitializer {
             if (titlesMgr != null) {
                 titlesMgr.reloadIfChanged();
             }
+
+            com.haojing.battlepass.server.cape.CapeManager capesMgr = capeManager;
+
+            if (capesMgr != null) {
+                capesMgr.reloadIfChanged();
+            }
         } catch (RuntimeException e) {
             LOGGER.warn("{} 配置热重载检查出现异常（本轮跳过）：{}", ModConstants.LOG_PREFIX, e.toString());
         }
@@ -544,6 +551,11 @@ public class HaoJingBattlePassServer implements ModInitializer {
             titles.load();
             titleManager = titles;
 
+            com.haojing.battlepass.server.cape.CapeManager capes =
+                    new com.haojing.battlepass.server.cape.CapeManager(paths, jsonStore);
+            capes.load();
+            capeManager = capes;
+
             TaskProgressTracker tracker = new TaskProgressTracker(data, pools, configs);
             taskProgressTracker = tracker;
 
@@ -644,6 +656,7 @@ public class HaoJingBattlePassServer implements ModInitializer {
                                 return current != null && current.isActive();
                             }, titles);
             snapshotFactory.setRandomEventService(eventService);
+            snapshotFactory.setCapeManager(capes);
 
             com.haojing.battlepass.server.net.PlayerSyncService sync =
                     new com.haojing.battlepass.server.net.PlayerSyncService(snapshotFactory);
@@ -660,6 +673,7 @@ public class HaoJingBattlePassServer implements ModInitializer {
             com.haojing.battlepass.server.net.ModNetworking network =
                     new com.haojing.battlepass.server.net.ModNetworking(handshake, sync, adminActions,
                             battlePass, taskAssignmentService, shop, data);
+            network.setCapeManager(capes);
             network.register();
             networking = network;
 
@@ -719,6 +733,7 @@ public class HaoJingBattlePassServer implements ModInitializer {
         milestoneManager = null;
         milestoneService = null;
         titleManager = null;
+        capeManager = null;
         networking = null;
         syncService = null;
 
