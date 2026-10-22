@@ -75,6 +75,15 @@ public final class SnapshotFactory {
     /** 披风管理器（可选，由装配处注入）。 */
     private CapeManager capeManager;
 
+    /** 经验加成时段运行时管理器（可选；首页加成卡片与倍率展示用）。 */
+    private com.haojing.battlepass.server.bonus.BonusTimeManager bonusTimeManager;
+
+    /** 排行榜运行时服务（可选；RANKING 通道快照用）。 */
+    private com.haojing.battlepass.server.ranking.RankingService rankingService;
+
+    /** 签到服务（可选；首页签到卡片状态用）。 */
+    private com.haojing.battlepass.server.checkin.CheckinService checkinService;
+
     public SnapshotFactory(PlayerDataManager dataManager, ConfigManager configManager, StoragePaths paths,
                            TaskPoolManager taskPoolManager, LevelRewardManager levelRewardManager,
                            ShopManager shopManager, EggManager eggManager, RedeemCodeManager redeemCodeManager,
@@ -116,6 +125,21 @@ public final class SnapshotFactory {
     /** 注入披风管理器（衣柜快照用）。 */
     public void setCapeManager(CapeManager manager) {
         this.capeManager = manager;
+    }
+
+    /** 注入经验加成时段管理器（首页加成卡片用）。 */
+    public void setBonusTimeManager(com.haojing.battlepass.server.bonus.BonusTimeManager manager) {
+        this.bonusTimeManager = manager;
+    }
+
+    /** 注入排行榜服务（RANKING 通道快照用）。 */
+    public void setRankingService(com.haojing.battlepass.server.ranking.RankingService service) {
+        this.rankingService = service;
+    }
+
+    /** 注入签到服务（首页签到卡片状态用）。 */
+    public void setCheckinService(com.haojing.battlepass.server.checkin.CheckinService service) {
+        this.checkinService = service;
     }
 
     /**
@@ -219,6 +243,24 @@ public final class SnapshotFactory {
             } else {
                 snapshot.eventCooldownSeconds = (int) randomEventService.cooldownSeconds(nowMs);
             }
+        }
+
+        // ── 经验加成时段状态（与长夜卡片同构：首页据此画一张正向色调的状态卡） ──
+        if (bonusTimeManager != null) {
+            snapshot.bonusTimeActive = bonusTimeManager.isActive();
+
+            if (snapshot.bonusTimeActive) {
+                snapshot.bonusTimeMultiplier = bonusTimeManager.multiplier();
+                snapshot.bonusTimeMinutesRemaining = (int) bonusTimeManager.minutesRemaining();
+            }
+        }
+
+        // ── 每日签到状态（开关、今日是否已签、连击天数、本赛季累计次数） ──
+        if (checkinService != null) {
+            snapshot.checkInEnabled = checkinService.enabled();
+            snapshot.checkInClaimedToday = checkinService.isClaimedToday(playerUuid);
+            snapshot.signInStreak = season.signInStreak;
+            snapshot.seasonSignInCount = season.seasonSignInCount;
         }
 
         return snapshot;
@@ -362,6 +404,20 @@ public final class SnapshotFactory {
         }
 
         return snapshot;
+    }
+
+    /**
+     * 赛季排行榜快照（服务端定时重建的全服排名，按当前玩家视角标注本人行与名次）。
+     *
+     * @param playerUuid 玩家
+     * @return 快照；服务未注入或尚未完成首轮重建时返回空快照（客户端显示"暂无排名数据"）
+     */
+    public ModSnapshots.Ranking ranking(UUID playerUuid) {
+        if (rankingService == null) {
+            return new ModSnapshots.Ranking();
+        }
+
+        return rankingService.snapshotFor(playerUuid);
     }
 
     /**

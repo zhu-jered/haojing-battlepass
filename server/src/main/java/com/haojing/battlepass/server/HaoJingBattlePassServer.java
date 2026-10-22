@@ -98,6 +98,10 @@ public class HaoJingBattlePassServer implements ModInitializer {
     private static volatile com.haojing.battlepass.server.cape.CapeManager capeManager;
     private static volatile com.haojing.battlepass.server.net.ModNetworking networking;
     private static volatile com.haojing.battlepass.server.net.PlayerSyncService syncService;
+    private static volatile com.haojing.battlepass.server.bonus.BonusTimeManager bonusTimeManager;
+    private static volatile com.haojing.battlepass.server.ranking.RankingService rankingService;
+    private static volatile com.haojing.battlepass.server.checkin.CheckinManager checkinManager;
+    private static volatile com.haojing.battlepass.server.checkin.CheckinService checkinService;
 
     /** 随机事件用的随机源（集中一个，避免每次 new 出重复序列）。 */
     private static final Random RANDOM = new Random();
@@ -187,6 +191,11 @@ public class HaoJingBattlePassServer implements ModInitializer {
     /** @return 披风管理器；未初始化时为 {@code null}。管理面板需要它来展示/重载披风。 */
     public static com.haojing.battlepass.server.cape.CapeManager capes() {
         return capeManager;
+    }
+
+    /** @return 签到配置管理器；未初始化时为 {@code null}。管理面板保存 checkin.json 后即时重载用。 */
+    public static com.haojing.battlepass.server.checkin.CheckinManager checkin() {
+        return checkinManager;
     }
 
     /** @return 网络层；未初始化时为 {@code null}。用于把更新后的披风贴图推给在线客户端。 */
@@ -334,6 +343,12 @@ public class HaoJingBattlePassServer implements ModInitializer {
                 codes.reloadIfChanged();
             }
 
+            com.haojing.battlepass.server.checkin.CheckinManager checkinMgr = checkinManager;
+
+            if (checkinMgr != null) {
+                checkinMgr.reloadIfChanged();
+            }
+
             RandomEventManager events = randomEventManager;
 
             if (events != null) {
@@ -370,6 +385,17 @@ public class HaoJingBattlePassServer implements ModInitializer {
             }
         } catch (RuntimeException e) {
             LOGGER.warn("{} 配置热重载检查出现异常（本轮跳过）：{}", ModConstants.LOG_PREFIX, e.toString());
+        }
+
+        // 经验加成时段状态机：每 20 tick 由这里驱动一次（内部再做 5 秒配置变更节流）。
+        try {
+            com.haojing.battlepass.server.bonus.BonusTimeManager bonus = bonusTimeManager;
+
+            if (bonus != null) {
+                bonus.tick();
+            }
+        } catch (RuntimeException e) {
+            LOGGER.warn("{} 加成时段状态检查出现异常（本轮跳过）：{}", ModConstants.LOG_PREFIX, e.toString());
         }
 
         TaskAssignmentService assignment = taskAssignmentService;
@@ -566,6 +592,11 @@ public class HaoJingBattlePassServer implements ModInitializer {
             codes.load();
             redeemCodeManager = codes;
 
+            com.haojing.battlepass.server.checkin.CheckinManager checkin =
+                    new com.haojing.battlepass.server.checkin.CheckinManager(paths, jsonStore);
+            checkin.load();
+            checkinManager = checkin;
+
             RandomEventManager events = new RandomEventManager(paths, jsonStore);
             events.load();
             randomEventManager = events;
@@ -591,14 +622,21 @@ public class HaoJingBattlePassServer implements ModInitializer {
             LongNightManager night = new LongNightManager(configs);
             longNightManager = night;
 
-            // 战令业务：经验倍率是"长夜倍率 × 随机事件倍率"的乘积（§5.11 + §10）。
+            // 经验加成时段：纯倍率窗口，状态机由维护循环每 20 tick 驱动（见 runMaintenance）。
+            com.haojing.battlepass.server.bonus.BonusTimeManager bonus =
+                    new com.haojing.battlepass.server.bonus.BonusTimeManager(configs);
+            bonusTimeManager = bonus;
+
+            // 战令业务：经验倍率是"长夜倍率 × 随机事件倍率 × 加成时段倍率"的乘积（§5.11 + §10 + 加成时段）。
             // 用 lambda 在调用时读取静态字段，避免初始化顺序耦合（事件服务在本行之后才创建）。
             BattlePassService battlePass = new BattlePassService(data, configs, pools, rewards, uuid -> {
                 LongNightManager currentNight = longNightManager;
                 RandomEventService currentEvents = randomEventService;
+                com.haojing.battlepass.server.bonus.BonusTimeManager currentBonus = bonusTimeManager;
                 double nightMultiplier = currentNight == null ? 1.0D : currentNight.xpMultiplier(uuid);
                 double eventMultiplier = currentEvents == null ? 1.0D : currentEvents.xpMultiplier();
-                return nightMultiplier * eventMultiplier;
+                double bonusMultiplier = currentBonus == null ? 1.0D : currentBonus.multiplier();
+                return nightMultiplier * eventMultiplier * bonusMultiplier;
             });
             battlePassService = battlePass;
 
@@ -625,6 +663,12 @@ public class HaoJingBattlePassServer implements ModInitializer {
 
             battlePass.setMetricSink(milestoneServiceInstance);
 
+            // 赛季排行榜：定时遍历存档聚合等级/经验，内存缓存排序结果供 RANKING 通道下发。
+            com.haojing.battlepass.server.ranking.RankingService rankingServiceInstance =
+                    new com.haojing.battlepass.server.ranking.RankingService(data, configs);
+            rankingServiceInstance.start();
+            rankingService = rankingServiceInstance;
+
             // 彩蛋：解锁公告 + 里程碑的"累计解锁彩蛋"指标。
             EggService eggServiceInstance = new EggService(data, eggs, battlePass);
             eggServiceInstance.setMetricSink(milestoneServiceInstance);
@@ -639,6 +683,12 @@ public class HaoJingBattlePassServer implements ModInitializer {
             RedeemCodeService redeemService = new RedeemCodeService(data, codes);
             redeemService.setRewardSink(sink);
             redeemCodeService = redeemService;
+
+            // 每日签到：奖励出口与口令/彩蛋一致，服务端做业务日幂等与断签判定。
+            com.haojing.battlepass.server.checkin.CheckinService checkinServiceInstance =
+                    new com.haojing.battlepass.server.checkin.CheckinService(data, checkin, configs);
+            checkinServiceInstance.setRewardSink(sink);
+            checkinService = checkinServiceInstance;
 
             // 随机事件：公告与效果由同一个回调驱动，避免"公告发了但效果忘了放"。
             // 第四个参数提供事件配置（刷怪亮度/半径等策略），热重载后下一场事件立即生效。
@@ -689,6 +739,9 @@ public class HaoJingBattlePassServer implements ModInitializer {
                             }, titles);
             snapshotFactory.setRandomEventService(eventService);
             snapshotFactory.setCapeManager(capes);
+            snapshotFactory.setBonusTimeManager(bonus);
+            snapshotFactory.setRankingService(rankingServiceInstance);
+            snapshotFactory.setCheckinService(checkinServiceInstance);
 
             com.haojing.battlepass.server.net.PlayerSyncService sync =
                     new com.haojing.battlepass.server.net.PlayerSyncService(snapshotFactory);
@@ -706,6 +759,7 @@ public class HaoJingBattlePassServer implements ModInitializer {
                     new com.haojing.battlepass.server.net.ModNetworking(handshake, sync, adminActions,
                             battlePass, taskAssignmentService, shop, data);
             network.setCapeManager(capes);
+            network.setCheckinService(checkinServiceInstance);
             network.register();
             networking = network;
 
@@ -745,6 +799,7 @@ public class HaoJingBattlePassServer implements ModInitializer {
         TaskAssignmentService assignment = taskAssignmentService;
         SeasonResetService reset = seasonResetService;
         MilestoneService milestones = milestoneService;
+        com.haojing.battlepass.server.ranking.RankingService ranking = rankingService;
 
         dataManager = null;
         configManager = null;
@@ -768,6 +823,10 @@ public class HaoJingBattlePassServer implements ModInitializer {
         capeManager = null;
         networking = null;
         syncService = null;
+        bonusTimeManager = null;
+        rankingService = null;
+        checkinManager = null;
+        checkinService = null;
 
         if (assignment != null) {
             // 先停刷新线程，再落盘玩家数据，避免关服过程中还有线程在改数据。
@@ -782,6 +841,11 @@ public class HaoJingBattlePassServer implements ModInitializer {
         if (milestones != null) {
             // 里程碑计数是内存累加的，关服必须同步写一次（内部会先停掉定时落盘线程）。
             milestones.close();
+        }
+
+        if (ranking != null) {
+            // 先停排名重建线程，避免关服过程中它还在读离线存档。
+            ranking.close();
         }
 
         if (data != null) {

@@ -41,6 +41,14 @@
     "fatigueHungerAcceleration": false,
     "adminWhitelist": []
   },
+  "bonusTime": {
+    "enabled": false,
+    "start": "19:00",
+    "end": "22:00",
+    "xpMultiplier": 2.0
+  },
+  "rankingEnabled": true,
+  "rankingTopN": 10,
   "gui": {
     "_comment": "GUI 外观配置：颜色均填原版 § 代码（如 §a、§6）或颜色名（如 gold、red），留空回退默认；透明度 0~255。",
     "selectionBorderColor": "§f",

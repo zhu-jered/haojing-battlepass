@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "_comment": "每日签到配置：dailyRewards 按 cycleDays 天循环；streakMilestones 达到固定连续天数一次性发放，只发一次。奖励类型支持 BATTLEPASS_XP / STAR_COIN / EXEMPT_CARD / ITEM / COMMAND / TITLE。",
+  "enabled": true,
+  "cycleDays": 7,
+  "dailyRewards": [
+    [ { "type": "STAR_COIN", "amount": 5 } ],
+    [ { "type": "BATTLEPASS_XP", "amount": 30 } ],
+    [ { "type": "STAR_COIN", "amount": 8 } ],
+    [ { "type": "BATTLEPASS_XP", "amount": 50 } ],
+    [ { "type": "STAR_COIN", "amount": 12 } ],
+    [ { "type": "BATTLEPASS_XP", "amount": 80 } ],
+    [ { "type": "STAR_COIN", "amount": 20 }, { "type": "EXEMPT_CARD", "amount": 1 } ]
+  ],
+  "streakMilestones": [
+    {
+      "streak": 7,
+      "rewards": [ { "type": "BATTLEPASS_XP", "amount": 100 }, { "type": "STAR_COIN", "amount": 10 } ]
+    },
+    {
+      "streak": 14,
+      "rewards": [ { "type": "BATTLEPASS_XP", "amount": 200 }, { "type": "STAR_COIN", "amount": 20 } ]
+    },
+    {
+      "streak": 30,
+      "rewards": [ { "type": "BATTLEPASS_XP", "amount": 400 }, { "type": "STAR_COIN", "amount": 30 } ]
+    }
+  ]
+}

@@ -338,6 +338,22 @@ public final class ConfigManager {
         }
 
         validateLongNight(value.longNight);
+
+        if (value.bonusTime == null) {
+            LOGGER.warn("{} 配置缺少 bonusTime 节点，已补上默认值", ModConstants.LOG_PREFIX);
+            value.bonusTime = new SeasonConfig.BonusTimeConfig();
+        }
+
+        validateBonusTime(value.bonusTime);
+
+        // 排行榜名次上限夹紧：0 或负数等于"谁都不上榜"，超过 100 名在面板上根本看不完。
+        if (value.rankingTopN < 1 || value.rankingTopN > 100) {
+            int clamped = Math.max(1, Math.min(100, value.rankingTopN));
+            LOGGER.warn("{} rankingTopN={} 超出 1~100，已夹紧为 {}",
+                    ModConstants.LOG_PREFIX, value.rankingTopN, clamped);
+            value.rankingTopN = clamped;
+        }
+
         validateGui(value.gui);
     }
 
@@ -540,6 +556,29 @@ public final class ConfigManager {
         value.fatigueMiningFatigueAmplifier = clampAmplifier(value.fatigueMiningFatigueAmplifier, "fatigueMiningFatigueAmplifier");
 
         value.adminWhitelist = normalizeWhitelist(value.adminWhitelist);
+    }
+
+    /**
+     * 规范化加成时段配置：起止时刻宽容解析、倍率夹紧到与长夜同一区间。
+     *
+     * <p>为什么起止相同只告警不改正：与长夜同口径，{@code TimeUtil.isWithin} 把相同起止视为空时段，
+     * 表现为"加成永不生效"，是更安全的失败方向。
+     */
+    private void validateBonusTime(SeasonConfig.BonusTimeConfig value) {
+        value.start = formatTime(TimeUtil.parseTime(value.start, LocalTime.of(19, 0)));
+        value.end = formatTime(TimeUtil.parseTime(value.end, LocalTime.of(22, 0)));
+
+        if (value.start.equals(value.end)) {
+            LOGGER.warn("{} 加成时段的 start 与 end 相同（{}），该时段长度为 0，加成将永不生效",
+                    ModConstants.LOG_PREFIX, value.start);
+        }
+
+        if (value.xpMultiplier < MIN_XP_MULTIPLIER || value.xpMultiplier > MAX_XP_MULTIPLIER) {
+            double clamped = Math.max(MIN_XP_MULTIPLIER, Math.min(MAX_XP_MULTIPLIER, value.xpMultiplier));
+            LOGGER.warn("{} bonusTime.xpMultiplier={} 超出 {}~{}，已夹紧为 {}",
+                    ModConstants.LOG_PREFIX, value.xpMultiplier, MIN_XP_MULTIPLIER, MAX_XP_MULTIPLIER, clamped);
+            value.xpMultiplier = clamped;
+        }
     }
 
     private int clampAmplifier(int value, String fieldName) {

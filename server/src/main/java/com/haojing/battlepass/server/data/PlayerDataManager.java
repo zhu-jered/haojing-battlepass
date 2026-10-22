@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -254,6 +255,21 @@ public final class PlayerDataManager implements AutoCloseable {
     }
 
     /**
+     * 当前内存缓存里已加载的玩家 UUID（在线玩家 + 刚进服尚未落盘的新玩家）。
+     *
+     * <p>为什么排行榜枚举时要单独提供这份集合：{@link #allStoredPlayerIds()} 只读磁盘，
+     * 60 秒重建窗口内刚升级、还没轮到写盘的在线玩家会被漏掉；内存里的 season/global
+     * 才是最新值，因此重建时以"磁盘存档 ∪ 内存缓存"为准，去重后逐个读取。
+     *
+     * @return 内存中已加载玩家 UUID 的集合（season 与 global 缓存的并集）
+     */
+    public Set<UUID> loadedPlayerIds() {
+        Set<UUID> ids = new LinkedHashSet<>(seasonCache.keySet());
+        ids.addAll(globalCache.keySet());
+        return ids;
+    }
+
+    /**
      * 关服流程：停止写盘线程，并把内存中全部数据同步落盘。
      *
      * <p>这里是有意为之的同步 IO（见类注释）：进程即将退出，必须确保写完。
@@ -321,6 +337,10 @@ public final class PlayerDataManager implements AutoCloseable {
 
         if (data.claimedLevelRewards == null) {
             data.claimedLevelRewards = new java.util.LinkedHashSet<>();
+        }
+
+        if (data.claimedStreakMilestones == null) {
+            data.claimedStreakMilestones = new java.util.LinkedHashSet<>();
         }
 
         return data;

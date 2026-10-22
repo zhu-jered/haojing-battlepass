@@ -112,6 +112,29 @@ public class SeasonData {
      */
     public Map<String, EggProgress> eggProgress = new LinkedHashMap<>();
 
+    /**
+     * 上一次签到的业务日键（yyyy-MM-dd，口径与每日任务一致：以 dailyRefreshTime 为界）。
+     *
+     * <p>为什么放在赛季数据而不是永久数据：连续签到奖励属于"本赛季新一轮激励"，
+     * 赛季轮换时连击清零重新开始（与等级/任务同生共灭，见 {@code SeasonResetService}）。
+     * 旧存档缺这个字段时 Gson 给空串，行为等同于"从未签到"，不会崩。
+     */
+    public String lastSignInDate = "";
+
+    /** 当前连续签到天数（断签后重置为 1）。 */
+    public int signInStreak = 0;
+
+    /** 本赛季累计签到次数（不清零跨赛季，随赛季重置）。 */
+    public int seasonSignInCount = 0;
+
+    /**
+     * 已发放过的连续签到里程碑去重键集合（例如 "7" 表示连续 7 天的里程碑已领过）。
+     *
+     * <p>为什么要单独存一个集合：里程碑奖励只发一次，而连击天数会随每天签到继续上涨；
+     * 不记下"哪些档已经发过"，第 8 天会把 7 天档再发一遍。
+     */
+    public Set<String> claimedStreakMilestones = new LinkedHashSet<>();
+
     /** Gson 反序列化需要无参构造。 */
     public SeasonData() {
     }

@@ -170,6 +170,11 @@ public final class SeasonResetService implements AutoCloseable {
         season.eggProgress = new LinkedHashMap<>();
         // 清掉每日刷新标记：让该玩家在下一轮刷新里重新抽到本日的任务。
         season.lastDailyRefreshDate = "";
+        // 签到连击与累计次数随赛季清零：新赛季重新激励连续登录（已发放的里程碑奖励不追回）。
+        season.lastSignInDate = "";
+        season.signInStreak = 0;
+        season.seasonSignInCount = 0;
+        season.claimedStreakMilestones = new LinkedHashSet<>();
     }
 
     /**

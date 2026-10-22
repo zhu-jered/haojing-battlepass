@@ -243,6 +243,13 @@ public final class ServerAdminActions {
             }
         }
 
+        // 签到奖励表同样走文件编辑，保存后立即重载，不必等维护轮询。
+        com.haojing.battlepass.server.checkin.CheckinManager checkinMgr =
+                com.haojing.battlepass.server.HaoJingBattlePassServer.checkin();
+        if (checkinMgr != null) {
+            checkinMgr.reload();
+        }
+
         if (syncService != null) {
             syncService.markAllPlayersDirty(server);
             syncService.setPopulation(server == null ? 0 : server.getPlayerManager().getPlayerList().size(),
@@ -762,6 +769,7 @@ public final class ServerAdminActions {
         // titles.json 能显示但保存被白名单拒绝，capes.json 干脆不出现。
         files.add(paths.titlesConfigFile());
         files.add(paths.capesConfigFile());
+        files.add(paths.checkinConfigFile());
         files.add(paths.stateFile());
         return files;
     }

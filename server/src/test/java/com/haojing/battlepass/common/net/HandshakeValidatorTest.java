@@ -64,8 +64,9 @@ class HandshakeValidatorTest {
         assertEquals(ModConstants.NETWORK_NAMESPACE, ModNetworkingIds.HANDSHAKE_C2S.getNamespace());
         assertEquals(ModConstants.NETWORK_NAMESPACE, ModNetworkingIds.SYNC_FRAGMENT_S2C.getNamespace());
         assertEquals(ModConstants.NETWORK_NAMESPACE, ModNetworkingIds.CLIENT_ACTION_C2S.getNamespace());
-        assertEquals(6, SyncChannels.ALL.size(), "六个玩家可见通道：首页/任务/商店/称号/收藏/披风");
+        assertEquals(7, SyncChannels.ALL.size(), "七个玩家可见通道：首页/任务/商店/称号/收藏/披风/排行");
         assertTrue(SyncChannels.ALL.contains(SyncChannels.PLAYER));
+        assertTrue(SyncChannels.ALL.contains(SyncChannels.RANKING));
         assertFalse(SyncChannels.ALL.contains(SyncChannels.ADMIN), "管理通道只发给 OP，不属于常规同步");
     }
 

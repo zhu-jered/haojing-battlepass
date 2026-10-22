@@ -29,6 +29,7 @@
   "haojing_battlepass.gui.tab.shop": "商店",
   "haojing_battlepass.gui.tab.titles": "称号",
   "haojing_battlepass.gui.tab.collection": "收藏",
+  "haojing_battlepass.gui.tab.ranking": "排行",
 
   "haojing_battlepass.gui.home.season": "赛季：%s（%s）",
   "haojing_battlepass.gui.home.season_days": "本赛季剩余：%s 天",
@@ -348,5 +349,25 @@
   "haojing_battlepass.gui.cape.equip": "穿戴",
   "haojing_battlepass.gui.cape.unequip": "卸下披风",
   "haojing_battlepass.gui.cape.equipped": "已穿戴",
-  "haojing_battlepass.gui.cape.locked": "未解锁"
+  "haojing_battlepass.gui.cape.locked": "未解锁",
+
+  "haojing_battlepass.gui.home.checkin.title": "每日签到",
+  "haojing_battlepass.gui.home.checkin.summary": "连续 %s 天 · 本赛季累计 %s 次",
+  "haojing_battlepass.gui.home.checkin.claim": "签到",
+  "haojing_battlepass.gui.home.checkin.claimed": "已签到",
+  "haojing_battlepass.gui.home.checkin.done": "今日已签",
+  "haojing_battlepass.gui.home.checkin.tooltip": "每日签到领取奖励；连续登录可达成里程碑领取额外奖励，断签后连击重新累计。",
+
+  "haojing_battlepass.gui.home.bonus.active": "§a经验加成 %s §7剩余 §e%s §7分钟",
+
+  "haojing_battlepass.gui.ranking.title": "赛季排行",
+  "haojing_battlepass.gui.ranking.header": "本赛季参与排名：%s 人",
+  "haojing_battlepass.gui.ranking.empty": "暂无上榜玩家",
+  "haojing_battlepass.gui.ranking.disabled": "排行榜当前未开启",
+  "haojing_battlepass.gui.ranking.me_rank": "我的名次：第 %s 名",
+  "haojing_battlepass.gui.ranking.me_absent": "我的名次：未上榜",
+
+  "haojing_battlepass.action.checkin.ok": "签到成功，奖励已发放。",
+  "haojing_battlepass.action.checkin.already": "今天已经签到过了。",
+  "haojing_battlepass.action.checkin.disabled": "签到功能当前未开启。"
 }

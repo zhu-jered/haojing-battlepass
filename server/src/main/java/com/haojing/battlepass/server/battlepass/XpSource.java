@@ -36,7 +36,10 @@ public enum XpSource {
     MILESTONE("里程碑"),
 
     /** 管理员手动发放（阶段 7 的数据维护）。 */
-    ADMIN("管理员发放");
+    ADMIN("管理员发放"),
+
+    /** 每日签到与连续登录里程碑奖励。 */
+    DAILY_CHECKIN("每日签到");
 
     private final String label;
 

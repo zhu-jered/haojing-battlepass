@@ -136,6 +136,11 @@ public final class StoragePaths {
         return configDir.resolve("capes");
     }
 
+    /** @return 每日签到与连续登录奖励配置（config/&lt;模组名&gt;/checkin.json）。 */
+    public Path checkinConfigFile() {
+        return configDir.resolve("checkin.json");
+    }
+
     /**
      * @return 全服状态文件（data/&lt;模组名&gt;/state.json）。
      *

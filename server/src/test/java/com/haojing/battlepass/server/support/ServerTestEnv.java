@@ -6,6 +6,8 @@ import com.haojing.battlepass.server.battlepass.BattlePassService;
 import com.haojing.battlepass.server.battlepass.LevelRewardManager;
 import com.haojing.battlepass.server.battlepass.XpMultiplierProvider;
 import com.haojing.battlepass.server.battlepass.XpSource;
+import com.haojing.battlepass.server.checkin.CheckinManager;
+import com.haojing.battlepass.server.checkin.CheckinService;
 import com.haojing.battlepass.server.config.ConfigManager;
 import com.haojing.battlepass.server.data.PlayerDataManager;
 import com.haojing.battlepass.server.data.ServerStateManager;
@@ -114,6 +116,8 @@ public final class ServerTestEnv implements AutoCloseable {
     public final EggService eggService;
     public final RedeemCodeManager redeemCodeManager;
     public final RedeemCodeService redeemCodeService;
+    public final CheckinManager checkinManager;
+    public final CheckinService checkinService;
     public final RandomEventManager randomEventManager;
     public final RandomEventService randomEventService;
     public final MilestoneManager milestoneManager;
@@ -195,6 +199,12 @@ public final class ServerTestEnv implements AutoCloseable {
 
         redeemCodeService = new RedeemCodeService(data, redeemCodeManager);
         redeemCodeService.setRewardSink(sink);
+
+        // 每日签到：配置从内置默认资源生成，奖励出口复用同一个记录型 sink。
+        checkinManager = new CheckinManager(paths, jsonStore);
+        checkinManager.load();
+        checkinService = new CheckinService(data, checkinManager, configs);
+        checkinService.setRewardSink(sink);
 
         randomEventService = new RandomEventService(randomEventManager);
         randomEventService.setRewardSink(sink);

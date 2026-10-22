@@ -47,7 +47,10 @@ public final class NetActions {
         CHOOSE_DAILY_GROUP("group"),
 
         /** 穿戴披风：arg = 披风 ID（空串表示卸下）。 */
-        EQUIP_CAPE("");
+        EQUIP_CAPE(""),
+
+        /** 领取今日签到奖励（无参；每日业务日边界与每日任务一致）。 */
+        CHECK_IN("");
 
         private final String argHint;
 

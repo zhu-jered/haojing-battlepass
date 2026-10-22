@@ -42,14 +42,15 @@ import java.util.List;
 @Environment(EnvType.CLIENT)
 public class BattlePassScreen extends Screen {
 
-    /** 六个分页的翻译键（顺序即页签顺序）。 */
+    /** 七个分页的翻译键（顺序即页签顺序）。 */
     private static final String[] TAB_KEYS = {
             "haojing_battlepass.gui.tab.home",
             "haojing_battlepass.gui.tab.daily",
             "haojing_battlepass.gui.tab.weekly",
             "haojing_battlepass.gui.tab.shop",
             "haojing_battlepass.gui.tab.titles",
-            "haojing_battlepass.gui.tab.collection"
+            "haojing_battlepass.gui.tab.collection",
+            "haojing_battlepass.gui.tab.ranking"
     };
 
     private int tab;
@@ -170,6 +171,7 @@ public class BattlePassScreen extends Screen {
                     case 3 -> renderShopCustom(context, mouseX, mouseY);
                     case 4 -> renderTitlesCustom(context, mouseX, mouseY);
                     case 5 -> renderCollectionCustom(context);
+                    case 6 -> renderRankingCustom(context);
                     default -> renderRowList(context);
                 }
             }
@@ -398,6 +400,9 @@ public class BattlePassScreen extends Screen {
             case 5:
                 buildCollection(built);
                 break;
+            case 6:
+                // 排行榜是只读卡片列表，不走 Row 行模型。
+                break;
             default:
                 buildHome(built);
                 break;
@@ -601,6 +606,27 @@ public class BattlePassScreen extends Screen {
 
         y += evtH + 8;
 
+        // ── 每日签到卡片（服务端关闭签到时整卡不显示） ──
+        if (p.checkInEnabled) {
+            int ckH = 22;
+            drawCard(context, px, y, pw, ckH, CARD_BORDER_GOLD);
+            context.drawTextWithShadow(this.textRenderer,
+                    Text.translatable("haojing_battlepass.gui.home.checkin.title"),
+                    px + 6, y + 6, dimColor);
+
+            String streakText = Text.translatable("haojing_battlepass.gui.home.checkin.summary",
+                    p.signInStreak, p.seasonSignInCount).getString();
+            context.drawTextWithShadow(this.textRenderer, streakText, px + 78, y + 6, 0xFFFFFFFF);
+
+            if (p.checkInClaimedToday) {
+                String done = Text.translatable("haojing_battlepass.gui.home.checkin.done").getString();
+                int doneW = this.textRenderer.getWidth(done);
+                context.drawTextWithShadow(this.textRenderer, done, px + pw - doneW - 8, y + 6, 0xFF55AA55);
+            }
+
+            y += ckH + 8;
+        }
+
         // ── 长夜状态 ──
         if (p.longNight) {
             int lnH = 22;
@@ -613,6 +639,17 @@ public class BattlePassScreen extends Screen {
                     "§5长夜降临 §7剩余 §d" + p.longNightMinutesRemaining + " 分钟 §7（经验获取减半）",
                     px + 6, y + 6, 0xFFFFFFFF);
             y += lnH + 8;
+        }
+
+        // ── 经验加成时段（仅在加成窗口内显示；正向绿色，与长夜紫色负向效果区分） ──
+        if (p.bonusTimeActive) {
+            int btH = 22;
+            drawCard(context, px, y, pw, btH, 0xFF44AA44);
+            String mult = String.format(java.util.Locale.ROOT, "×%.1f", p.bonusTimeMultiplier);
+            String bonusText = Text.translatable("haojing_battlepass.gui.home.bonus.active",
+                    mult, p.bonusTimeMinutesRemaining).getString();
+            context.drawTextWithShadow(this.textRenderer, bonusText, px + 6, y + 6, 0xFFFFFFFF);
+            y += btH + 8;
         }
 
         // ── 赛季倒计时（服务端 seasonStartDate 配置后才有值；-1 = 未配置，不显示）──
@@ -1060,6 +1097,66 @@ public class BattlePassScreen extends Screen {
         }
     }
 
+    /**
+     * 第七分页：赛季排行榜（只读）。
+     *
+     * <p>数据全部由服务端聚合：Top N 条目只含名次/名字/等级/经验，不发 UUID；本人行高亮，
+     * 未进榜单的玩家也显示全量真实名次，便于知道离上榜还差多少。
+     */
+    private void renderRankingCustom(DrawContext context) {
+        ModSnapshots.Ranking ranking = ClientNetworking.state().ranking();
+        int px = layout.panelX() + 6;
+        int pw = layout.panelWidth() - 12;
+        int y = layout.contentTop();
+        int dimColor = 0xFF888888;
+
+        if (!ranking.enabled) {
+            context.drawTextWithShadow(this.textRenderer,
+                    Text.translatable("haojing_battlepass.gui.ranking.disabled"), px, y, dimColor);
+            return;
+        }
+
+        // 顶部：参与人数
+        context.drawTextWithShadow(this.textRenderer,
+                Text.translatable("haojing_battlepass.gui.ranking.header", ranking.participants),
+                px, y, 0xFFFFFFFF);
+        y += 16;
+
+        // Top N 榜单卡片
+        int rowH = 16;
+        int listH = 24 + Math.max(1, ranking.entries.size()) * rowH;
+        drawCard(context, px, y, pw, listH, CARD_BORDER);
+        context.drawTextWithShadow(this.textRenderer,
+                Text.translatable("haojing_battlepass.gui.ranking.title"), px + 6, y + 5, dimColor);
+
+        if (ranking.entries.isEmpty()) {
+            context.drawTextWithShadow(this.textRenderer,
+                    Text.translatable("haojing_battlepass.gui.ranking.empty"), px + 10, y + 18, dimColor);
+        } else {
+            int ly = y + 18;
+            for (ModSnapshots.RankEntry entry : ranking.entries) {
+                int rankColor = entry.rank <= 3 ? 0xFFFFAA00 : dimColor;
+                String rankText = "#" + entry.rank;
+                context.drawTextWithShadow(this.textRenderer, rankText, px + 8, ly, rankColor);
+
+                // 本人行整行偏黄高亮：开头颜色码跟随 isSelf，避免 §f 把名字刷回白色盖过高亮色。
+                String head = entry.isSelf ? "§e" : "§f";
+                String body = head + entry.name + "  §7Lv." + entry.level + "  §7经验 §e" + entry.xp;
+                int bodyColor = entry.isSelf ? 0xFFFFEE55 : 0xFFFFFFFF;
+                context.drawTextWithShadow(this.textRenderer, body, px + 44, ly, bodyColor);
+                ly += rowH;
+            }
+        }
+
+        y += listH + 8;
+
+        // 本人全量名次（不在 Top N 内时也给出真实名次；-1 表示当前无可定位玩家）。
+        String myRankText = ranking.myRank < 0
+                ? Text.translatable("haojing_battlepass.gui.ranking.me_absent").getString()
+                : Text.translatable("haojing_battlepass.gui.ranking.me_rank", ranking.myRank).getString();
+        context.drawTextWithShadow(this.textRenderer, myRankText, px, y, 0xFFFFDD44);
+    }
+
     /** 在披风定义列表里按 id 取显示名；找不到返回 id 本身。 */
     private String capeDisplayName(ModSnapshots.Capes capes, String id) {
         if (capes.definitions != null) {
@@ -1106,8 +1203,33 @@ public class BattlePassScreen extends Screen {
         int pw = layout.panelWidth() - 12;
         int y0 = layout.contentTop();
 
-        // 每日 tab 的按钮用 ButtonWidget，位置和 renderDailyCustom 完全一致
-        if (tab == 1) {
+        // 首页：每日签到按钮，坐标与 renderHomeCustom 里的签到卡严格对齐。
+        if (tab == 0) {
+            ModSnapshots.Player self = ClientNetworking.state().player();
+
+            if (self.checkInEnabled) {
+                int cy = y0;
+                cy += 14;                              // 欢迎语
+                cy += 44 + 8;                          // Hero 等级卡片
+                if (self.guiStyle != null && self.guiStyle.showLevelAxis) {
+                    cy += 36 + 8;                      // 等级轨道
+                }
+                int evtH = self.eventActive ? 50 : 28;
+                cy += evtH + 8;                        // 事件卡片
+
+                Text claimText = Text.translatable(self.checkInClaimedToday
+                        ? "haojing_battlepass.gui.home.checkin.claimed"
+                        : "haojing_battlepass.gui.home.checkin.claim");
+                ButtonWidget checkin = ButtonWidget.builder(claimText, w -> {
+                    ClientNetworking.sendAction(NetActions.ClientAction.CHECK_IN, "");
+                    rebuild();
+                }).dimensions(px + pw - 84, cy + 3, 78, 16)
+                        .tooltip(Tooltip.of(Text.translatable("haojing_battlepass.gui.home.checkin.tooltip")))
+                        .build();
+                checkin.active = !self.checkInClaimedToday;
+                addDrawableChild(checkin);
+            }
+        } else if (tab == 1) {
             ModSnapshots.Tasks tasks = ClientNetworking.state().tasks();
             ModSnapshots.Player self = ClientNetworking.state().player();
             String chosen = tasks.chosenGroup == null ? "" : tasks.chosenGroup;

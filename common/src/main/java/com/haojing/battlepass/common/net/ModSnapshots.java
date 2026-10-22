@@ -90,6 +90,24 @@ public final class ModSnapshots {
         public String eventRewardSummary = "";
         /** 无事件时距下次可触发的剩余秒数（冷却中）；有事件时为 0。 */
         public int eventCooldownSeconds = 0;
+
+        // ── 经验加成时段状态（首页展示，与长夜卡片同构） ──
+        /** 当前是否处于经验加成时段。 */
+        public boolean bonusTimeActive = false;
+        /** 加成时段内的经验倍率（非加成时段为 1.0）。 */
+        public double bonusTimeMultiplier = 1.0D;
+        /** 加成时段剩余分钟数（非加成时段为 0）。 */
+        public int bonusTimeMinutesRemaining = 0;
+
+        // ── 每日签到状态 ──
+        /** 签到功能是否启用（配置开关，客户端据此决定是否显示签到卡片）。 */
+        public boolean checkInEnabled = true;
+        /** 今日是否已经签到。 */
+        public boolean checkInClaimedToday = false;
+        /** 当前连续签到天数。 */
+        public int signInStreak = 0;
+        /** 本赛季累计签到次数。 */
+        public int seasonSignInCount = 0;
     }
 
     /** 一条任务（每日或每周）在玩家身上的进度（§8：名称/描述/进度/状态/奖励）。 */
@@ -276,6 +294,45 @@ public final class ModSnapshots {
         public String acquireHint = "";
         /** 贴图文件名（服务端据此定位 PNG，客户端不直接读路径）。 */
         public String textureFile = "";
+    }
+
+    /**
+     * 赛季排行榜快照（服务端权威聚合：等级降序 → 经验降序 → 名字升序，平局名次稳定）。
+     *
+     * <p>为什么不下发 UUID：排行榜只用于展示，客户端不需要、也不应当拿到其他玩家的 UUID；
+     * 本人行用 {@link RankEntry#isSelf} 标注即可高亮。
+     */
+    public static class Ranking {
+
+        /** 排行榜功能是否启用（配置开关，关闭时客户端整页不显示榜单）。 */
+        public boolean enabled = true;
+
+        /** 榜单展示的前 N 名。 */
+        public int topN = 10;
+
+        /** 本人当前名次；未上榜时为 -1。 */
+        public int myRank = -1;
+
+        /** 参与排名的玩家总数（含未上榜者）。 */
+        public int participants = 0;
+
+        /** 榜单条目（已按名次排好序，截断到 topN）。 */
+        public List<RankEntry> entries = new ArrayList<>();
+    }
+
+    /** 排行榜单条记录。 */
+    public static class RankEntry {
+
+        /** 名次（1 起）。 */
+        public int rank = 0;
+        /** 玩家名（显示用，服务端读存档里的 lastKnownName）。 */
+        public String name = "";
+        /** 战令等级。 */
+        public int level = 1;
+        /** 当前等级内经验。 */
+        public int xp = 0;
+        /** 是否为本玩家自己（用于高亮本人行）。 */
+        public boolean isSelf = false;
     }
 
     /** 管理面板快照（§9：九类可编辑项 + 状态概览）。 */

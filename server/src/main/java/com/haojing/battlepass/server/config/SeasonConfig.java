@@ -149,6 +149,21 @@ public class SeasonConfig {
     public LongNightConfig longNight = new LongNightConfig();
 
     /**
+     * 经验加成时段配置（每日固定窗口内全员经验 × 倍率，正向福利，与长夜倍率相乘叠加）。
+     *
+     * <p>为什么单独开一个子节点而不是并入 longNight：长夜是"夜间减速 + 经验减半"的负向时段，
+     * 加成是"晚间鼓励上线"的正向时段，两者开关、起止、倍率都需要独立调整；
+     * 管理员白名单只豁免长夜，不豁免加成（加成是全员福利，见 docs/需求偏差记录.md）。
+     */
+    public BonusTimeConfig bonusTime = new BonusTimeConfig();
+
+    /** 赛季排行榜总开关：关闭后 RANKING 快照为空（参与人数/条目/名次均不填），客户端第七页签显示"未开启"。 */
+    public boolean rankingEnabled = true;
+
+    /** 排行榜展示的前 N 名（校验时夹紧到 1~100）。 */
+    public int rankingTopN = 10;
+
+    /**
      * 客户端 GUI 视觉配置（颜色、社团链接等）。
      *
      * <p>这些值只影响客户端渲染，管理员在 season.json 里改完无需重启，
@@ -174,6 +189,42 @@ public class SeasonConfig {
     /** @return 长夜是否处于启用状态（总开关 + 子对象存在）。 */
     public boolean longNightEnabled() {
         return enabled && longNight != null && longNight.enabled;
+    }
+
+    /** @return 加成时段开始时刻；配置非法时回退为 19:00。 */
+    public LocalTime bonusTimeStart() {
+        return TimeUtil.parseTime(bonusTime == null ? null : bonusTime.start, LocalTime.of(19, 0));
+    }
+
+    /** @return 加成时段结束时刻；配置非法时回退为 22:00。 */
+    public LocalTime bonusTimeEnd() {
+        return TimeUtil.parseTime(bonusTime == null ? null : bonusTime.end, LocalTime.of(22, 0));
+    }
+
+    /** @return 加成时段是否处于启用状态（赛季总开关 + 子开关 + 子对象存在）。 */
+    public boolean bonusTimeEnabled() {
+        return enabled && bonusTime != null && bonusTime.enabled;
+    }
+
+    /**
+     * 经验加成时段配置（season.json 的 {@code bonusTime} 子对象）。
+     *
+     * <p>与 {@link LongNightConfig} 刻意不共用基类：长夜带疲劳效果与管理员白名单，
+     * 加成时段只是一个纯倍率窗口，字段越少管理员越不容易配错。
+     */
+    public static class BonusTimeConfig {
+
+        /** 加成时段总开关。默认关闭：上线后由管理员在 season.json 里开启。 */
+        public boolean enabled = false;
+
+        /** 加成开始时刻，HH:mm，默认 19:00（北京时间）。 */
+        public String start = "19:00";
+
+        /** 加成结束时刻，HH:mm，默认 22:00（北京时间）。 */
+        public String end = "22:00";
+
+        /** 加成时段内的经验倍率（与长夜、随机事件倍率相乘；夹紧范围同长夜 0.0~10.0）。 */
+        public double xpMultiplier = 2.0D;
     }
 
     /**

@@ -24,6 +24,8 @@ import net.minecraft.text.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 /**
  * 用途：服务端网络层的**装配与路由**（需求文档 §2、§3、§8、§9、§14）。
  *
@@ -56,6 +58,9 @@ public final class ModNetworking {
     /** 披风管理器（可选，由装配处注入）。 */
     private CapeManager capeManager;
 
+    /** 签到服务（可选，由装配处注入；未注入时签到动作按未启用处理）。 */
+    private com.haojing.battlepass.server.checkin.CheckinService checkinService;
+
     public ModNetworking(HandshakeService handshakeService, PlayerSyncService syncService,
                          ServerAdminActions adminActions, BattlePassService battlePassService,
                          TaskAssignmentService taskAssignmentService, ShopManager shopManager,
@@ -72,6 +77,11 @@ public final class ModNetworking {
     /** 注入披风管理器。 */
     public void setCapeManager(CapeManager manager) {
         this.capeManager = manager;
+    }
+
+    /** 注入签到服务。 */
+    public void setCheckinService(com.haojing.battlepass.server.checkin.CheckinService service) {
+        this.checkinService = service;
     }
 
     /** 注册全部包类型与监听。应在服务端初始化时调用一次。 */
@@ -313,6 +323,20 @@ public final class ModNetworking {
                         : battlePassService.chooseBranch(player.getUuid(), Branch.fromName(arg));
                 reply(player, branch == BattlePassService.BranchChooseOutcome.OK, branchKey(branch));
                 break;
+            case CHECK_IN: {
+                // 签到：服务端二次校验开关、业务日幂等与断签规则；结果回执供客户端动作栏提示。
+                com.haojing.battlepass.server.checkin.CheckinService.CheckinResult result = checkinService == null
+                        ? new com.haojing.battlepass.server.checkin.CheckinService.CheckinResult(
+                        com.haojing.battlepass.server.checkin.CheckinService.Outcome.DISABLED, 0, List.of(), List.of())
+                        : checkinService.checkIn(player.getUuid());
+                String checkinKey = switch (result.outcome()) {
+                    case OK -> "haojing_battlepass.action.checkin.ok";
+                    case ALREADY_CLAIMED -> "haojing_battlepass.action.checkin.already";
+                    default -> "haojing_battlepass.action.checkin.disabled";
+                };
+                reply(player, result.outcome() == com.haojing.battlepass.server.checkin.CheckinService.Outcome.OK, checkinKey);
+                break;
+            }
             default:
                 break;
         }
