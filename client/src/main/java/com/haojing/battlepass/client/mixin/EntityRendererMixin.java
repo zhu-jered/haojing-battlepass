@@ -5,10 +5,12 @@ import com.haojing.battlepass.client.net.OnlineTitles;
 import com.haojing.battlepass.common.gui.GuiColors;
 import com.haojing.battlepass.common.net.ModSnapshots;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.state.EntityRenderState;
-import net.minecraft.client.util.math.MatrixStack;import net.minecraft.text.MutableText;
+import net.minecraft.client.render.state.CameraRenderState;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
@@ -23,8 +25,13 @@ import java.util.UUID;
 /**
  * 在玩家头顶名称标签前注入装备称号。
  *
- * <p>1.21.11 的 renderLabelIfPresent 接收 EntityRenderState，标签文本存在 state 的某个字段里。
- * 用反射找到该字段（name/label/displayName），在方法入口把称号拼到前面。
+ * <p>1.21.11 的渲染管线把标签绘制参数从旧版的 {@code VertexConsumerProvider.Immediate + light}
+ * 换成了 {@code OrderedRenderCommandQueue + CameraRenderState}：基类
+ * {@code EntityRenderer#renderLabelIfPresent} 的真实签名是
+ * {@code (EntityRenderState, MatrixStack, OrderedRenderCommandQueue, CameraRenderState)}。
+ * 注入方法参数必须与该签名逐项对应，否则 Mixin 在 APPLY 阶段就会因描述符不符而硬崩溃。
+ * 标签文本存放在渲染状态的 public Text 字段 {@code displayName}；在 HEAD 把称号拼到原名前写回，
+ * 后续管线会直接读取该字段绘制头顶名称。
  */
 @Mixin(EntityRenderer.class)
 public abstract class EntityRendererMixin {
@@ -34,7 +41,7 @@ public abstract class EntityRendererMixin {
 
     @Inject(method = "renderLabelIfPresent", at = @At("HEAD"))
     private void haojing$prependTitle(EntityRenderState state, MatrixStack matrices,
-                                      VertexConsumerProvider.Immediate consumers, int light, CallbackInfo ci) {
+                                      OrderedRenderCommandQueue queue, CameraRenderState camera, CallbackInfo ci) {
         try {
             if (state == null) {
                 return;
@@ -124,30 +131,38 @@ public abstract class EntityRendererMixin {
         }
     }
 
+    /**
+     * 定位渲染状态上存放名称标签的 Text 字段。
+     *
+     * <p>1.21.11 基类 {@code EntityRenderState} 的 public 字段 {@code displayName} 即标签文本，
+     * 直接按声明类取字段，避免被首个渲染的非玩家实体子类差异影响而误缓存 {@code null}；
+     * 未命中时再沿继承链扫描 Text 类型字段，兼容后续版本字段位置微调。
+     */
     private static Field haojing$resolveField(Class<?> cls) throws Exception {
         if (haojing$nameFieldSearched) {
             return haojing$nameField;
         }
         haojing$nameFieldSearched = true;
-        // 按常见名称找
-        String[] candidates = {"name", "label", "displayName", "labelText"};
-        for (String c : candidates) {
-            try {
-                Field f = cls.getField(c);
-                if (Text.class.isAssignableFrom(f.getType())) {
-                    haojing$nameField = f;
-                    return f;
-                }
-            } catch (NoSuchFieldException ignored) {
-            }
-        }
-        // 找不到公开字段，扫所有字段（包括私有）
-        for (Field f : cls.getDeclaredFields()) {
+        // 1. 基类 public Text 字段 displayName
+        try {
+            Field f = EntityRenderState.class.getField("displayName");
             if (Text.class.isAssignableFrom(f.getType())) {
-                f.setAccessible(true);
                 haojing$nameField = f;
                 return f;
             }
+        } catch (NoSuchFieldException ignored) {
+        }
+        // 2. 沿类继承链向上扫描 Text 类型字段
+        Class<?> c = cls;
+        while (c != null && c != Object.class) {
+            for (Field f : c.getDeclaredFields()) {
+                if (Text.class.isAssignableFrom(f.getType())) {
+                    f.setAccessible(true);
+                    haojing$nameField = f;
+                    return f;
+                }
+            }
+            c = c.getSuperclass();
         }
         return null;
     }
