@@ -249,6 +249,24 @@ class RandomEventServiceTest {
         assertTrue(config.event("short").effects.isEmpty(), "非法效果应被丢弃");
     }
 
+    @Test
+    void 极端权重被夹紧后抽奖不崩溃(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            RandomEventConfig config = env.randomEventManager.config();
+
+            for (RandomEventDefinition event : config.all()) {
+                event.weight = Integer.MAX_VALUE;
+            }
+
+            config.validate();
+
+            env.randomEventService.poll(BASE, List.of(UUID.randomUUID()), new Random(1));
+
+            assertTrue(env.randomEventService.isActive(),
+                    "权重溢出会被夹紧到 1~100，抽奖（nextLong 累计）不应抛异常");
+        }
+    }
+
     private EventEffect xpEffect(double multiplier) {
         EventEffect effect = new EventEffect();
         effect.kind = EventEffectKind.XP_MULTIPLIER.name();

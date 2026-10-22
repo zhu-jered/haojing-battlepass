@@ -64,11 +64,14 @@ public final class RandomEventEffects {
      * <p>ITEM 与 XP_MULTIPLIER 不在这里：前者在结束时发给参与者（见 {@link #applyEnd}），
      * 后者由 {@link RandomEventService#xpMultiplier()} 在整个事件期间持续生效。
      *
+     * <p>为什么不接收参与者名单：事件是全服事件，POTION/SPAWN 的施加对象就是"当前所有在线玩家"，
+     * 与参与判定无关。这里直接遍历 {@code server.getPlayerManager().getPlayerList()}，
+     * 传入 UUID 名单反而是误导（拿不到实体引用，最后还是得再查一遍）。
+     *
      * @param effects  效果列表
      * @param duration 事件时长（秒），用于状态效果缺省持续时间
-     * @param online   当前在线玩家
      */
-    public void applyStart(List<EventEffect> effects, int duration, List<UUID> online) {
+    public void applyStart(List<EventEffect> effects, int duration) {
         if (effects == null || effects.isEmpty()) {
             return;
         }
@@ -82,10 +85,10 @@ public final class RandomEventEffects {
 
             switch (kind) {
                 case POTION:
-                    applyPotion(effect, duration, online);
+                    applyPotion(effect, duration);
                     break;
                 case SPAWN:
-                    applySpawn(effect, online);
+                    applySpawn(effect);
                     break;
                 case COMMAND:
                     runCommand(effect);
@@ -122,7 +125,7 @@ public final class RandomEventEffects {
         }
     }
 
-    private void applyPotion(EventEffect effect, int duration, List<UUID> online) {
+    private void applyPotion(EventEffect effect, int duration) {
         Identifier id = Identifier.tryParse(effect.value);
 
         if (id == null) {
@@ -162,7 +165,7 @@ public final class RandomEventEffects {
      * 不看亮度、不找地面，白天室内、火把照亮的基地与生电机房都会刷出怪物。新版每只怪物都要先找到一个
      * {@link #findSpawnSpot 满足亮度与空间条件的暗点}；找不到就放弃这一只，绝不为凑数量硬刷到亮处。
      */
-    private void applySpawn(EventEffect effect, List<UUID> online) {
+    private void applySpawn(EventEffect effect) {
         MinecraftServer server = serverSupplier.get();
         Identifier id = Identifier.tryParse(effect.value);
 

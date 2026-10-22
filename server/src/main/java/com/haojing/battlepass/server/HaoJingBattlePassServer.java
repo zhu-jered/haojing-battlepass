@@ -644,7 +644,7 @@ public class HaoJingBattlePassServer implements ModInitializer {
                 int duration = Math.max(1, definition.durationMinutes) * 60;
 
                 if (started) {
-                    effects.applyStart(definition.effects, duration, participants);
+                    effects.applyStart(definition.effects, duration);
                     server.getPlayerManager().broadcast(Text.translatableWithFallback(
                             definition.startKey(),
                             "【随机事件】%s 开始了，持续 %s 分钟",

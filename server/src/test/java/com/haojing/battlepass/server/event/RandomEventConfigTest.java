@@ -83,4 +83,27 @@ class RandomEventConfigTest {
         assertEquals(32, config.effectiveSpawnMaxAttempts());
         assertEquals(1, config.effectiveSpawnVerticalRange());
     }
+
+    @Test
+    void 校验会把越界权重夹紧到1到100() {
+        RandomEventConfig config = new RandomEventConfig();
+
+        RandomEventDefinition zero = new RandomEventDefinition();
+        zero.id = "zero";
+        zero.type = "DOUBLE_XP";
+        zero.weight = 0;
+        config.events.add(zero);
+
+        RandomEventDefinition huge = new RandomEventDefinition();
+        huge.id = "huge";
+        huge.type = "DOUBLE_XP";
+        huge.weight = Integer.MAX_VALUE;
+        config.events.add(huge);
+
+        config.validate();
+
+        assertEquals(1, config.event("zero").weight, "权重 0 夹紧到下限 1");
+        assertEquals(100, config.event("huge").weight,
+                "权重上限 100：两条 2^31 级的权重相加会让 int 溢出，抽奖时 random.nextInt(负数) 直接崩");
+    }
 }

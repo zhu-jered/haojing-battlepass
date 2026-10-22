@@ -137,6 +137,17 @@ public class RandomEventConfig {
                 continue;
             }
 
+            if (event.weight < 1 || event.weight > 100) {
+                // 2026-10 自查：权重没有上限时，两条超大权重相加会让 int 溢出，
+                // 抽奖时 random.nextInt(负数) 直接抛异常、整个事件系统崩溃。夹紧到 1~100。
+                int clamped = Math.max(1, Math.min(100, event.weight));
+                LOGGER.warn("{} 随机事件 {} 的权重 {} 超出 1~100，已夹紧为 {}",
+                        ModConstants.LOG_PREFIX, event.id, event.weight, clamped);
+                event.weight = clamped;
+            }
+
+            warnOnDoubleItemReward(event);
+
             if (built.containsKey(event.id)) {
                 LOGGER.warn("{} 随机事件 id 重复：{}，只保留第一次出现的", ModConstants.LOG_PREFIX, event.id);
                 dropped++;
@@ -215,6 +226,29 @@ public class RandomEventConfig {
 
         if (dropped > 0) {
             LOGGER.warn("{} 随机事件配置校验完成：丢弃 {} 条", ModConstants.LOG_PREFIX, dropped);
+        }
+    }
+
+    /**
+     * 防呆提示：同一事件里"奖励表发物品"与"效果表发物品"同时出现会让玩家各拿一份。
+     *
+     * <p>两者语义不同（rewards 表 = 参与者奖励，effects ITEM = 事件结束时直接发），
+     * 管理员把同一物品同时放进两处时大概率是误配。这里只 WARN 不拦截 ——
+     * 有的活动可能确实想要"双份"（比如纪念日发双倍物资），拦死反而误伤。
+     */
+    private void warnOnDoubleItemReward(RandomEventDefinition event) {
+        if (event.rewards == null || event.effects == null) {
+            return;
+        }
+
+        boolean rewardHasItem = event.rewards.stream().anyMatch(reward ->
+                reward != null && reward.typeOrNull() == com.haojing.battlepass.common.data.RewardType.ITEM);
+        boolean effectHasItem = event.effects.stream().anyMatch(effect ->
+                effect != null && effect.kindOrNull() == EventEffectKind.ITEM);
+
+        if (rewardHasItem && effectHasItem) {
+            LOGGER.warn("{} 随机事件 {} 的奖励表与效果表都含物品发放，玩家会各收到一份（若是有意为之请忽略）",
+                    ModConstants.LOG_PREFIX, event.id);
         }
     }
 

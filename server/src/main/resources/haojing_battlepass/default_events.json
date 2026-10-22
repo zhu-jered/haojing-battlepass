@@ -90,6 +90,73 @@
         { "type": "BATTLEPASS_XP", "amount": 50 },
         { "type": "STAR_COIN", "amount": 8 }
       ]
+    },
+    {
+      "id": "ev_pillager_raid",
+      "name": "掠夺者入侵",
+      "type": "PILLAGER_RAID",
+      "enabled": true,
+      "durationMinutes": 10,
+      "weight": 2,
+      "participation": { "type": "KILL_ENTITY", "target": 2 },
+      "effects": [
+        { "kind": "SPAWN", "value": "minecraft:pillager", "amount": 3 },
+        { "kind": "SPAWN", "value": "minecraft:vindicator", "amount": 1 }
+      ],
+      "rewards": [
+        { "type": "BATTLEPASS_XP", "amount": 90 },
+        { "type": "STAR_COIN", "amount": 8 },
+        { "type": "ITEM", "itemId": "minecraft:emerald", "amount": 4 }
+      ]
+    },
+    {
+      "id": "ev_harvest_festival",
+      "name": "丰收庆典",
+      "type": "HARVEST_FESTIVAL",
+      "enabled": true,
+      "durationMinutes": 8,
+      "weight": 2,
+      "participation": { "type": "BREAK_BLOCK", "target": 5 },
+      "effects": [
+        { "kind": "POTION", "value": "minecraft:haste", "amount": 0, "durationSeconds": 480 },
+        { "kind": "POTION", "value": "minecraft:luck", "amount": 0, "durationSeconds": 480 }
+      ],
+      "rewards": [
+        { "type": "BATTLEPASS_XP", "amount": 40 },
+        { "type": "STAR_COIN", "amount": 3 }
+      ]
+    },
+    {
+      "id": "ev_fishing_derby",
+      "name": "钓鱼大赛",
+      "type": "FISHING_DERBY",
+      "enabled": true,
+      "durationMinutes": 10,
+      "weight": 2,
+      "participation": { "type": "FISH", "target": 2 },
+      "effects": [
+        { "kind": "POTION", "value": "minecraft:luck", "amount": 1, "durationSeconds": 600 }
+      ],
+      "rewards": [
+        { "type": "BATTLEPASS_XP", "amount": 35 },
+        { "type": "STAR_COIN", "amount": 2 }
+      ]
+    },
+    {
+      "id": "ev_mining_rush",
+      "name": "挖矿热潮",
+      "type": "MINING_RUSH",
+      "enabled": true,
+      "durationMinutes": 8,
+      "weight": 2,
+      "participation": { "type": "BREAK_BLOCK", "target": 4 },
+      "effects": [
+        { "kind": "POTION", "value": "minecraft:haste", "amount": 1, "durationSeconds": 480 }
+      ],
+      "rewards": [
+        { "type": "BATTLEPASS_XP", "amount": 45 },
+        { "type": "STAR_COIN", "amount": 5 }
+      ]
     }
   ]
 }

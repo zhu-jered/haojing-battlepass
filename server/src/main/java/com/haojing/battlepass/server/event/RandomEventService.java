@@ -246,6 +246,11 @@ public final class RandomEventService {
             return;
         }
 
+        // 已算参与的玩家不再累计动作：继续累加只让计数无界增长（大 target 事件下毫无意义）。
+        if (participants.contains(playerUuid)) {
+            return;
+        }
+
         int target = Math.max(1, participation.target);
         int count = actionCounts.merge(playerUuid, 1, Integer::sum);
 
@@ -322,17 +327,19 @@ public final class RandomEventService {
             return null;
         }
 
-        int total = 0;
+        // 用 long 累计：配置校验已把单个权重夹紧到 1~100，但 double-check 不依赖那一步
+        // （若将来权重上限放开，int 相加仍可能溢出导致 random.nextInt(负数) 抛异常）。
+        long total = 0L;
 
         for (RandomEventDefinition candidate : candidates) {
-            total += Math.max(1, candidate.weight);
+            total += Math.max(1L, candidate.weight);
         }
 
-        int roll = random.nextInt(Math.max(1, total));
-        int cumulative = 0;
+        long roll = random.nextLong(total);
+        long cumulative = 0L;
 
         for (RandomEventDefinition candidate : candidates) {
-            cumulative += Math.max(1, candidate.weight);
+            cumulative += Math.max(1L, candidate.weight);
 
             if (roll < cumulative) {
                 return candidate;
