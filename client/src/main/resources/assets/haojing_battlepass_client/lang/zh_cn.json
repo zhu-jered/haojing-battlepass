@@ -31,6 +31,9 @@
   "haojing_battlepass.gui.tab.collection": "收藏",
 
   "haojing_battlepass.gui.home.season": "赛季：%s（%s）",
+  "haojing_battlepass.gui.home.season_days": "本赛季剩余：%s 天",
+  "haojing_battlepass.gui.home.season_today": "本赛季今天到期，请尽快完成目标",
+  "haojing_battlepass.gui.home.season_due": "本赛季已到期，等待管理员开启新赛季",
   "haojing_battlepass.gui.home.level": "等级：%s / %s",
   "haojing_battlepass.gui.home.xp": "经验：%s / %s",
   "haojing_battlepass.gui.home.remaining_xp": "今日剩余可获取经验：%s",

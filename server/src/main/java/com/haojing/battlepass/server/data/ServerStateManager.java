@@ -132,6 +132,17 @@ public final class ServerStateManager {
         writeQuietly(current);
     }
 
+    /**
+     * 记录"本业务日已发起过一次赛季日程提醒"（幂等：一天至多一次）。
+     *
+     * @param businessDateKey 业务日键（yyyy-MM-dd，以 dailyRefreshTime 为界）
+     */
+    public void markSeasonNoticed(String businessDateKey) {
+        ServerState current = ensureLoaded();
+        current.lastSeasonNoticeDate = businessDateKey == null ? "" : businessDateKey;
+        writeQuietly(current);
+    }
+
     // ------------------------------------------------------------------
     // 全服里程碑（阶段 6）
     // ------------------------------------------------------------------

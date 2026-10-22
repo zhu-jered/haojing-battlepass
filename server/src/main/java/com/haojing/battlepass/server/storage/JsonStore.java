@@ -138,6 +138,28 @@ public final class JsonStore {
         }
     }
 
+    /**
+     * 从 JSON 字符串解析对象（供读取内置默认配置资源等无文件场景使用）。
+     * 解析失败返回 null，不抛异常 —— 与 {@link #read} 的容错口径一致。
+     *
+     * @param json  JSON 文本
+     * @param type  目标类型
+     * @param <T>   数据类型
+     * @return 解析结果；非法输入为 null
+     */
+    public static <T> T fromJson(String json, Class<T> type) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+
+        try {
+            return GSON.fromJson(json, type);
+        } catch (RuntimeException e) {
+            // Gson 解析失败（JsonSyntaxException / JsonIOException）都是 RuntimeException。
+            return null;
+        }
+    }
+
     /** @param file 数据文件 @return 对应的 .bak 路径。 */
     public static Path backupOf(Path file) {
         return sibling(file, ".bak");

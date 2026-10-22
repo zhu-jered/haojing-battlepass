@@ -204,12 +204,8 @@ public final class TaskProgressTracker {
                     dataManager.markSeasonDirty(playerUuid);
                 }
 
-                // 位置类任务完成也通知调用方。
-                List<String> completed = justCompleted.get();
-                if (!completed.isEmpty()) {
-                    // 不直接发消息，留给调用方读。
-                }
-
+                // 位置类任务由轮询方按"由假变真"触发，完成时 justCompleted 会由 applyProgress
+                // 写入（与 advance 共用同一份 ThreadLocal），调用方 advance 后 drain 一次即可。
                 return changed;
             }
         }

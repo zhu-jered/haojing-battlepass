@@ -106,6 +106,9 @@ public final class ServerTestEnv implements AutoCloseable {
     public final SeasonResetService seasonReset;
     public final List<String> announcements = new ArrayList<>();
 
+    /** 赛季日程提醒（临近结束/已到期）的播报文本记录。 */
+    public final List<String> scheduleAnnouncements = new ArrayList<>();
+
     // ---- 阶段 6 ----
     public final EggManager eggManager;
     public final EggService eggService;
@@ -156,6 +159,7 @@ public final class ServerTestEnv implements AutoCloseable {
 
         seasonReset = new SeasonResetService(data, configs, states, paths, jsonStore, tracker,
                 (from, to) -> announcements.add(from + "->" + to));
+        seasonReset.setScheduleAnnouncer(scheduleAnnouncements::add);
 
         // 阶段 6：四份配置 + 四个服务（都不启动后台线程，避免与断言抢时序）。
         eggManager = new EggManager(paths, jsonStore);

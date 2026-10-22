@@ -68,6 +68,19 @@ public final class SeasonResetService implements AutoCloseable {
         void announce(String fromSeasonId, String toSeasonId);
     }
 
+    /**
+     * 赛季日程提醒的公告出口（可选）。同样是为了让本类保持 MC-free：
+     * 正文由本类拼好（服务端播报文案一贯直接写中文，与重启倒计时一致），
+     * 出口只负责把文本送出去。
+     */
+    @FunctionalInterface
+    public interface ScheduleAnnouncer {
+        /**
+         * @param message 已拼好的公告文本
+         */
+        void announce(String message);
+    }
+
     private final PlayerDataManager dataManager;
     private final ConfigManager configManager;
     private final ServerStateManager stateManager;
@@ -78,6 +91,21 @@ public final class SeasonResetService implements AutoCloseable {
 
     /** 滚动防重入：后台归档还没跑完时，不要因为主线程下一轮轮询又启动一次。 */
     private final AtomicBoolean rolling = new AtomicBoolean(false);
+
+    /** 赛季日程提醒出口；未注入（setter）时提醒只记日志、不播报。 */
+    private volatile ScheduleAnnouncer scheduleAnnouncer;
+
+    /**
+     * 日程判断用的时钟。默认取北京时间，测试注入固定时刻让用例确定性化。
+     * （为什么不用参数传入：checkAndAnnounceSchedule 每天被维护线程调用，
+     * 每次传参容易漏传；放字段更符合"服务 = 环境 + 时钟"的既有风格。）
+     */
+    private volatile java.util.function.Supplier<java.time.ZonedDateTime> clock = TimeUtil::now;
+
+    /** 仅测试使用：把日程判断的时钟固定为某时刻。 */
+    void setClock(java.util.function.Supplier<java.time.ZonedDateTime> clock) {
+        this.clock = clock == null ? TimeUtil::now : clock;
+    }
 
     private final ExecutorService worker = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "HaoJingBP-SeasonRoll");
@@ -194,6 +222,16 @@ public final class SeasonResetService implements AutoCloseable {
     }
 
     /**
+     * 注入赛季日程提醒的公告出口。为什么不放进构造函数：装配顺序是
+     * "先造 SeasonResetService 再造播报实现"，setter 可以把依赖顺序拉平。
+     *
+     * @param announcer 公告出口；null 表示不播报（提醒只记日志）
+     */
+    public void setScheduleAnnouncer(ScheduleAnnouncer announcer) {
+        this.scheduleAnnouncer = announcer;
+    }
+
+    /**
      * 若还有"赛季已滚动"的公告没有播报，则播报并清除标记。
      *
      * <p>由调用方保证当前有玩家在线 —— 没有人在线时播报等于没播，
@@ -220,6 +258,88 @@ public final class SeasonResetService implements AutoCloseable {
 
         LOGGER.info("{} 已播报赛季结算公告：{} → {}", ModConstants.LOG_PREFIX, from, config.seasonId);
         return true;
+    }
+
+    /**
+     * 检查并播报"赛季临近结束 / 已到期"提醒（每天至多一次，跨重启不重复）。
+     *
+     * <p>为什么需要它（2026-10 全模组自查登记）：{@code SeasonConfig.durationDays} 此前是
+     * 死配置 —— 轮换判据只看 seasonId 是否被管理员改过，管理员根本无从知道赛季还剩几天。
+     * 配了 {@code seasonStartDate} 后，本方法在进入 {@code rolloverNoticeDays} 窗口（含到期日）
+     * 时每天播一次提醒；已到期且尚未推进新赛季时，同样每天一次，直到管理员把 seasonId
+     * 改成新值（届时滚动完成，lastSeasonId 追上配置，配置里的 startDate 应同步更新为新赛季）。
+     *
+     * <p>幂等依据：{@code ServerState.lastSeasonNoticeDate} 记"上次播报的业务日"。
+     * 业务日没变就跳过，因此停服跨天重启后只会补播一次，不会一天刷屏多遍。
+     *
+     * @param onlinePlayerIds 当前在线玩家；为空时不播（没人看得见的公告等于白播，
+     *                        留到明天有玩家在线时再播，幂等标记也没写）
+     * @return 本次是否发起了播报
+     */
+    public boolean checkAndAnnounceSchedule(List<UUID> onlinePlayerIds) {
+        SeasonConfig config = configManager.config();
+        ServerState state = stateManager.state();
+
+        if (config == null || state == null || scheduleAnnouncer == null) {
+            return false;
+        }
+
+        // 没配开始日期 = 关闭日程检查；不打扰默认部署。
+        if (config.seasonStartDate == null || config.seasonStartDate.isBlank()) {
+            return false;
+        }
+
+        if (onlinePlayerIds == null || onlinePlayerIds.isEmpty()) {
+            return false;
+        }
+
+        ZonedDateTime now = clock.get();
+        String today = TimeUtil.dateKey(now);
+
+        // 业务日没变：今天已经提醒过了（或上次提醒恰好在同一天），不重复。
+        if (today.equals(state.lastSeasonNoticeDate)) {
+            return false;
+        }
+
+        int days = SeasonSchedule.daysUntilEnd(now, config);
+
+        if (days < 0) {
+            announceDue(config, now, days);
+        } else if (days <= Math.max(0, config.rolloverNoticeDays)) {
+            announceNearEnd(config, days);
+        } else {
+            // 距离结束还早：不提醒，也不写幂等标记（否则今天就不会再提醒了）。
+            return false;
+        }
+
+        stateManager.markSeasonNoticed(today);
+        return true;
+    }
+
+    /** 已到期的提醒。 */
+    private void announceDue(SeasonConfig config, ZonedDateTime now, int overdueDays) {
+        String message = "§e[镐京战令] §c本赛季（" + config.seasonId + " " + label(config.themeName)
+                + "）已到期，等待管理员开启新赛季" + (overdueDays < -1 ? "（已超期 " + (-overdueDays) + " 天）" : "")
+                + "。如已开新赛季请同步更新 season.json 的 seasonStartDate。";
+
+        LOGGER.error("{} 赛季已到期：赛季={} 主题={} 超期 {} 天（lastSeasonId={}，请推进 seasonId）",
+                ModConstants.LOG_PREFIX, config.seasonId, config.themeName, -overdueDays,
+                stateManager.state() == null ? "" : stateManager.state().lastSeasonId);
+        scheduleAnnouncer.announce(message);
+    }
+
+    /** 临近结束（含到期日当天）的提醒。 */
+    private void announceNearEnd(SeasonConfig config, int daysRemaining) {
+        String message = "§e[镐京战令] §6本赛季（" + config.seasonId + " " + label(config.themeName)
+                + "）还有 " + daysRemaining + " 天结束，请抓紧完成战令目标。";
+
+        LOGGER.info("{} 赛季临近结束：剩余 {} 天（赛季={}）",
+                ModConstants.LOG_PREFIX, daysRemaining, config.seasonId);
+        scheduleAnnouncer.announce(message);
+    }
+
+    private static String label(String themeName) {
+        return themeName == null || themeName.isBlank() ? "" : themeName;
     }
 
     /**

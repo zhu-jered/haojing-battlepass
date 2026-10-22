@@ -175,6 +175,13 @@ public final class SnapshotFactory {
         snapshot.rerollUsed = season.dailyRerollUsed;
         snapshot.branch = season.branch().name();
 
+        // 赛季倒计时：配置了 seasonStartDate 才有意义；否则 -1（客户端不显示）。
+        if (config != null) {
+            snapshot.seasonDaysRemaining = com.haojing.battlepass.server.season.SeasonSchedule.daysUntilEnd(
+                    TimeUtil.now(), config);
+            snapshot.seasonOverdue = snapshot.seasonDaysRemaining < 0 && snapshot.seasonDaysRemaining != -1;
+        }
+
         // 称号显示开关（客户端偏好，服务端持久化）。
         snapshot.chatTitleVisible = global.chatTitleVisible;
         snapshot.nametagTitleVisible = global.nametagTitleVisible;
@@ -417,6 +424,12 @@ public final class SnapshotFactory {
             snapshot.themeName = config.themeName;
             snapshot.seasonEnabled = config.enabled;
             snapshot.durationDays = config.durationDays;
+
+            // 赛季倒计时：管理员据此决定何时推进 seasonId（与玩家首页同源）。
+            snapshot.seasonDaysRemaining = com.haojing.battlepass.server.season.SeasonSchedule.daysUntilEnd(
+                    TimeUtil.now(), config);
+            snapshot.seasonOverdue = snapshot.seasonDaysRemaining < 0 && snapshot.seasonDaysRemaining != -1;
+
             snapshot.maxLevel = config.maxLevel;
             snapshot.branchUnlockLevel = config.branchUnlockLevel;
             snapshot.dailyRefreshTime = config.dailyRefreshTime;
@@ -528,7 +541,8 @@ public final class SnapshotFactory {
     }
 
     /** 把一条任务定义与进度合成快照行。 */
-    private ModSnapshots.TaskLine line(TaskDefinition definition, TaskProgress progress, boolean weekly) {        ModSnapshots.TaskLine line = new ModSnapshots.TaskLine();
+    private ModSnapshots.TaskLine line(TaskDefinition definition, TaskProgress progress, boolean weekly) {
+        ModSnapshots.TaskLine line = new ModSnapshots.TaskLine();
 
         if (progress != null) {
             line.id = progress.taskId;

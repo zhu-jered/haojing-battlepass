@@ -744,6 +744,20 @@ public class AdminPanelScreen extends Screen {
                 lines.add(Text.translatable("haojing_battlepass.admin.line.season", admin.seasonId, admin.themeName));
                 lines.add(Text.translatable("haojing_battlepass.admin.line.season_enabled", admin.seasonEnabled));
                 lines.add(Text.translatable("haojing_battlepass.admin.line.duration", admin.durationDays));
+
+                // 赛季倒计时：让管理员在面板上直接看到"还剩几天/已到期"，决定何时推进 seasonId。
+                if (admin.seasonDaysRemaining != -1) {
+                    if (admin.seasonOverdue) {
+                        lines.add(Text.literal("§c本赛季已到期，请尽快推进 seasonId 开启新赛季"));
+                    } else if (admin.seasonDaysRemaining == 0) {
+                        lines.add(Text.literal("§6本赛季今天到期，请尽快推进 seasonId"));
+                    } else {
+                        lines.add(Text.literal("§e本赛季剩余：§f" + admin.seasonDaysRemaining + " §7天"));
+                    }
+                } else {
+                    lines.add(Text.literal("§7赛季日程未配置（seasonStartDate 为空，不提醒）"));
+                }
+
                 lines.add(Text.translatable("haojing_battlepass.admin.line.branch_unlock", admin.branchUnlockLevel));
                 lines.add(Text.translatable("haojing_battlepass.admin.line.online", admin.onlinePlayers,
                         admin.storedPlayers));

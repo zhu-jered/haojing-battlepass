@@ -256,4 +256,111 @@ class SeasonResetServiceTest {
             assertTrue(season.dailyTasks.isEmpty(), "旧赛季的任务进度必须清空");
         }
     }
+
+    // ── 2026-10 全模组自查新增：赛季日程提醒（checkAndAnnounceSchedule）──
+
+    /** 把服务端时钟固定到测试日期，避免用例依赖"跑测试当天"的真实日期。 */
+    private static void freezeClock(ServerTestEnv env, String date) {
+        env.seasonReset.setClock(() -> java.time.LocalDate.parse(date)
+                .atStartOfDay(java.time.ZoneId.of("Asia/Shanghai")));
+    }
+
+    @Test
+    void 未配置开始日期时日程提醒直接跳过(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            freezeClock(env, "2026-10-22");
+            env.configs.config().seasonStartDate = "";
+
+            assertFalse(env.seasonReset.checkAndAnnounceSchedule(List.of(UUID.randomUUID())),
+                    "没配开始日期 = 关闭日程检查，不应播报");
+            assertTrue(env.scheduleAnnouncements.isEmpty());
+            assertEquals("", env.states.state().lastSeasonNoticeDate);
+        }
+    }
+
+    @Test
+    void 临近结束时播报一次且当日不重复(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            UUID id = UUID.randomUUID();
+            freezeClock(env, "2026-10-22");
+            // 开始 09-23 + 时长 30 → 结束日 10-22（剩 1 天），落在 3 天提醒窗口内
+            env.configs.config().seasonStartDate = "2026-09-23";
+            env.configs.config().durationDays = 30;
+            env.configs.config().rolloverNoticeDays = 3;
+
+            assertTrue(env.seasonReset.checkAndAnnounceSchedule(List.of(id)),
+                    "剩 1 天且进入 3 天窗口，应播报");
+            assertEquals(1, env.scheduleAnnouncements.size());
+            assertTrue(env.scheduleAnnouncements.get(0).contains("还有 1 天结束"),
+                    "播报文本应带剩余天数：" + env.scheduleAnnouncements.get(0));
+            assertEquals("2026-10-22", env.states.state().lastSeasonNoticeDate,
+                    "播报后应记下本业务日，供幂等去重");
+
+            assertFalse(env.seasonReset.checkAndAnnounceSchedule(List.of(id)),
+                    "同一天不应重复播报");
+            assertEquals(1, env.scheduleAnnouncements.size());
+        }
+    }
+
+    @Test
+    void 已到期时每天播报直到赛季被推进(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            UUID id = UUID.randomUUID();
+            freezeClock(env, "2026-10-22");
+            // 开始 09-01 + 时长 30 → 结束日 09-30，已超期 22 天
+            env.configs.config().seasonStartDate = "2026-09-01";
+            env.configs.config().durationDays = 30;
+            env.configs.config().rolloverNoticeDays = 3;
+
+            assertTrue(env.seasonReset.checkAndAnnounceSchedule(List.of(id)));
+            assertEquals(1, env.scheduleAnnouncements.size());
+            assertTrue(env.scheduleAnnouncements.get(0).contains("已到期"),
+                    "到期播报文本应带到期提示：" + env.scheduleAnnouncements.get(0));
+            assertFalse(env.scheduleAnnouncements.get(0).contains("还有 "),
+                    "到期文案不应写成'还有 N 天'");
+
+            // 同一天第二次调用不重复
+            assertFalse(env.seasonReset.checkAndAnnounceSchedule(List.of(id)));
+            assertEquals(1, env.scheduleAnnouncements.size());
+
+            // 模拟次日：把幂等日期改回前一天，且管理员还没推进赛季 → 应再次播报
+            env.states.markSeasonNoticed("2026-10-21");
+            assertTrue(env.seasonReset.checkAndAnnounceSchedule(List.of(id)),
+                    "跨日后应再次提醒（赛季仍未推进）");
+            assertEquals(2, env.scheduleAnnouncements.size());
+        }
+    }
+
+    @Test
+    void 没有玩家在线时不播报也不写幂等标记(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            freezeClock(env, "2026-10-22");
+            env.configs.config().seasonStartDate = "2026-09-23";
+            env.configs.config().durationDays = 30;
+
+            assertFalse(env.seasonReset.checkAndAnnounceSchedule(List.of()),
+                    "无人在线时公告没人看，不应播报");
+            assertEquals(0, env.scheduleAnnouncements.size());
+            assertEquals("", env.states.state().lastSeasonNoticeDate,
+                    "没播报就不该写幂等标记，否则在线后会错过当天的提醒");
+        }
+    }
+
+    @Test
+    void 距结束还远时不播报也不写幂等标记(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            UUID id = UUID.randomUUID();
+            freezeClock(env, "2026-10-22");
+            // 开始 11-01 + 时长 30 → 结束日 11-30，距今天 40 天，远超提醒窗口
+            env.configs.config().seasonStartDate = "2026-11-01";
+            env.configs.config().durationDays = 30;
+            env.configs.config().rolloverNoticeDays = 3;
+
+            assertFalse(env.seasonReset.checkAndAnnounceSchedule(List.of(id)),
+                    "距结束超过提醒窗口，不应播报");
+            assertEquals(0, env.scheduleAnnouncements.size());
+            assertEquals("", env.states.state().lastSeasonNoticeDate,
+                    "没播报就不该写幂等标记");
+        }
+    }
 }

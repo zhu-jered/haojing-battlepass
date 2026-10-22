@@ -459,6 +459,9 @@ public class HaoJingBattlePassServer implements ModInitializer {
             try {
                 reset.checkAndRoll(online);
 
+                // 赛季日程提醒（配了 seasonStartDate 才有）：每天至多一次，跨重启不重复。
+                reset.checkAndAnnounceSchedule(online);
+
                 // 只有真的有玩家在线才播报，否则公告会被标记成"已播报"而没人看到。
                 if (!online.isEmpty()) {
                     reset.announcePendingIfAny();
@@ -663,6 +666,10 @@ public class HaoJingBattlePassServer implements ModInitializer {
             seasonResetService = new SeasonResetService(data, configs, states, paths, jsonStore, tracker,
                     (fromSeasonId, toSeasonId) -> server.getPlayerManager().broadcast(
                             Text.translatable("haojing_battlepass.season.rolled", fromSeasonId, toSeasonId), false));
+
+            // 赛季日程提醒（临近结束/已到期）：正文由服务端拼好直接播，与每日重启倒计时风格一致。
+            seasonResetService.setScheduleAnnouncer(message -> server.getPlayerManager().broadcast(
+                    Text.literal(message), false));
 
             // 事件监听最后注册：确保上面所有依赖都已就绪，事件一到就能正常判定。
             // 任务事件同时把行为上报给里程碑与随机事件（§10 的统计口径与参与判定）。

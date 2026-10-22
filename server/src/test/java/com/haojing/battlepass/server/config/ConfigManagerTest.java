@@ -53,6 +53,51 @@ class ConfigManagerTest {
         assertEquals("00:00", config.longNight.start);
         assertEquals("06:00", config.longNight.end);
         assertEquals(0.5D, config.longNight.xpMultiplier, 1e-9D);
+        assertEquals("", config.seasonStartDate, "新赛季模板默认不启用日程检查");
+        assertEquals(3, config.rolloverNoticeDays);
+    }
+
+    @Test
+    void 首次落地的赛季配置来自内置模板(@TempDir Path tmp) throws IOException {
+        ConfigManager manager = newManager(tmp);
+        manager.load();
+
+        String onDisk = Files.readString(paths.seasonConfigFile(), StandardCharsets.UTF_8);
+        assertTrue(onDisk.contains("赛季配置模板"),
+                "落地文件应带内置模板的中文说明（与 Java 默认值不同，可据此确认来源）");
+        assertTrue(onDisk.contains("seasonStartDate"), "模板应写明 seasonStartDate 字段，指导管理员配新赛季");
+    }
+
+    @Test
+    void 非法开始日期被清空且提醒天数被夹紧(@TempDir Path tmp) throws IOException {
+        ConfigManager manager = newManager(tmp);
+        manager.load();
+
+        SeasonConfig bad = new SeasonConfig();
+        bad.seasonStartDate = "2026-13-99";
+        bad.rolloverNoticeDays = -5;
+        new JsonStore().write(paths.seasonConfigFile(), bad);
+
+        SeasonConfig fixed = manager.load();
+
+        assertEquals("", fixed.seasonStartDate, "非法日期应清空并关闭日程检查（宁可无提醒也不要算错倒计时）");
+        assertEquals(0, fixed.rolloverNoticeDays, "负数提醒天数应回退为 0（只在到期当天提醒）");
+    }
+
+    @Test
+    void 提醒天数超过上限被夹紧到三十天(@TempDir Path tmp) throws IOException {
+        ConfigManager manager = newManager(tmp);
+        manager.load();
+
+        SeasonConfig bad = new SeasonConfig();
+        bad.seasonStartDate = "2026-10-01";
+        bad.rolloverNoticeDays = 999;
+        new JsonStore().write(paths.seasonConfigFile(), bad);
+
+        SeasonConfig fixed = manager.load();
+
+        assertEquals("2026-10-01", fixed.seasonStartDate, "合法日期应原样保留");
+        assertEquals(30, fixed.rolloverNoticeDays, "超过一个赛季默认时长的提前提醒没有意义，应夹紧");
     }
 
     @Test

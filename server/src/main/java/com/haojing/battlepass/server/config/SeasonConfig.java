@@ -22,6 +22,9 @@ public class SeasonConfig {
     /** 配置结构版本。将来字段发生不兼容变更时递增，并在 ConfigManager 里做迁移。 */
     public int schemaVersion = CURRENT_SCHEMA_VERSION;
 
+    /** 配置文件里的中文说明（Gson 会序列化出来；客户端忽略）。新赛季轮换的填写指引见 docs/管理员手册.md。 */
+    public String _comment = "镐京战令赛季配置：seasonId 改为新赛季 ID（如 S2）即触发全服结算与重置；seasonStartDate 填赛季开始日期（yyyy-MM-dd）后启用到期提醒，留空则关闭；其它数值项均有默认值与夹紧保护。";
+
     /** 赛季 ID。用于存档归属判断与赛季归档文件名（data/history/season_&lt;id&gt;.json）。 */
     public String seasonId = "S1";
 
@@ -33,6 +36,19 @@ public class SeasonConfig {
 
     /** 赛季时长（天）。需求文档 §4 默认 30 天。 */
     public int durationDays = 30;
+
+    /**
+     * 赛季开始日期（yyyy-MM-dd）。留空串 = 不启用"到期提醒/首页倒计时"日程检查。
+     *
+     * <p>为什么需要它：轮换判据（玩家存档与配置 seasonId 不一致）只负责"滚没滚"，
+     * 管理员改 seasonId 之前不知道当前赛季还剩几天。配上开始日期后，
+     * 系统能在临近结束（rolloverNoticeDays 天内）与已到期时播报提醒，
+     * 首页也会显示剩余天数，避免赛季悄悄"超期"而没人推进。
+     */
+    public String seasonStartDate = "";
+
+    /** 赛季结束前多少天开始全服提醒（0 表示只在到期当天提醒）。仅 seasonStartDate 非空时生效。 */
+    public int rolloverNoticeDays = 3;
 
     /** 等级上限。需求文档 §4 规定等级范围 1~30。 */
     public int maxLevel = 30;

@@ -63,11 +63,24 @@ public final class ConfigManager {
     /**
      * 从磁盘加载配置并规范化，随后回写一次。文件缺失或损坏时退回默认值。
      *
+     * <p>为什么优先从内置模板 {@code default_season.json} 生成默认配置：
+     * 其它九类配置（任务/奖励/商店/彩蛋/口令/事件/里程碑/称号/披风）都有配套的默认 JSON 资源，
+     * 唯独 season.json 之前只靠 Java 字段默认值序列化 —— 管理员首次拿到手的配置没有任何
+     * 中文说明，也不知道"开新赛季改哪几个字段"。补上模板后，首次启动落地的就是一份
+     * 带注释、可直接修改的赛季配置，新赛季轮换从这里改起。
+     *
      * @return 加载后的配置（永不为 null）
      */
     public SeasonConfig load() {
         Path file = paths.seasonConfigFile();
         SeasonConfig loaded = jsonStore.read(file, SeasonConfig.class, () -> {
+            SeasonConfig bundled = readBundledDefault();
+
+            if (bundled != null) {
+                LOGGER.info("{} 未找到可用的赛季配置，已从内置模板生成默认配置：{}", ModConstants.LOG_PREFIX, file);
+                return bundled;
+            }
+
             LOGGER.info("{} 未找到可用的赛季配置，将生成默认配置：{}", ModConstants.LOG_PREFIX, file);
             return new SeasonConfig();
         });
@@ -79,6 +92,29 @@ public final class ConfigManager {
         // 下一次变更检查会把自己刚刚的写入误判成外部改动，从而陷入每轮都热重载的死循环。
         changeDetector.reset(file);
         return loaded;
+    }
+
+    /** 从 classpath 读内置的默认赛季配置模板；资源缺失或损坏时返回 null（调用方回退到 Java 默认值）。 */
+    private SeasonConfig readBundledDefault() {
+        try (java.io.InputStream in = getClass().getClassLoader()
+                .getResourceAsStream("haojing_battlepass/default_season.json")) {
+            if (in == null) {
+                return null;
+            }
+
+            String json = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            SeasonConfig value = JsonStore.fromJson(json, SeasonConfig.class);
+
+            if (value == null) {
+                LOGGER.warn("{} 内置默认赛季配置模板解析失败，回退到 Java 默认值", ModConstants.LOG_PREFIX);
+            }
+
+            return value;
+        } catch (IOException e) {
+            LOGGER.warn("{} 读取内置默认赛季配置模板失败，回退到 Java 默认值：{}",
+                    ModConstants.LOG_PREFIX, e.toString());
+            return null;
+        }
     }
 
     /**
@@ -177,6 +213,31 @@ public final class ConfigManager {
         if (value.durationDays < 1) {
             LOGGER.warn("{} durationDays={} 非法，已回退为 30", ModConstants.LOG_PREFIX, value.durationDays);
             value.durationDays = 30;
+        }
+
+        // 赛季开始日期：空串 = 不启用日程检查；非空必须是 yyyy-MM-dd，否则清空并告警（宁可退回"无提醒"也不要给客户端算出一个错误倒计时）。
+        if (value.seasonStartDate != null && !value.seasonStartDate.isBlank()) {
+            try {
+                java.time.LocalDate.parse(value.seasonStartDate.trim());
+                value.seasonStartDate = value.seasonStartDate.trim();
+            } catch (RuntimeException e) {
+                LOGGER.warn("{} seasonStartDate={} 非法（应为 yyyy-MM-dd），已清空（关闭到期提醒）",
+                        ModConstants.LOG_PREFIX, value.seasonStartDate);
+                value.seasonStartDate = "";
+            }
+        } else if (value.seasonStartDate == null) {
+            value.seasonStartDate = "";
+        }
+
+        if (value.rolloverNoticeDays < 0) {
+            LOGGER.warn("{} rolloverNoticeDays={} 非法，已回退为 0（只在到期当天提醒）",
+                    ModConstants.LOG_PREFIX, value.rolloverNoticeDays);
+            value.rolloverNoticeDays = 0;
+        } else if (value.rolloverNoticeDays > 30) {
+            // 上限 30：超过一个赛季默认时长（30 天）的"提前提醒"没有意义，只会刷屏。
+            LOGGER.warn("{} rolloverNoticeDays={} 超出 0~30，已夹紧为 30",
+                    ModConstants.LOG_PREFIX, value.rolloverNoticeDays);
+            value.rolloverNoticeDays = 30;
         }
 
         if (value.maxLevel < 1) {

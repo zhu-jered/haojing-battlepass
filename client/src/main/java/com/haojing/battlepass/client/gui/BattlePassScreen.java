@@ -615,6 +615,29 @@ public class BattlePassScreen extends Screen {
             y += lnH + 8;
         }
 
+        // ── 赛季倒计时（服务端 seasonStartDate 配置后才有值；-1 = 未配置，不显示）──
+        if (p.seasonDaysRemaining != -1) {
+            int sdH = 22;
+            context.fill(px, y, px + pw, y + sdH, CARD_BG);
+            int sdBorder = p.seasonOverdue ? 0xFFFF4444 : CARD_BORDER;
+            context.fill(px, y, px + pw, y + 1, sdBorder);
+            context.fill(px, y + sdH - 1, px + pw, y + sdH, sdBorder);
+            context.fill(px, y, px + 1, y + sdH, sdBorder);
+            context.fill(px + pw - 1, y, px + pw, y + sdH, sdBorder);
+
+            String sdText;
+            if (p.seasonOverdue) {
+                sdText = "§c本赛季已到期，等待管理员开启新赛季";
+            } else if (p.seasonDaysRemaining == 0) {
+                sdText = "§6本赛季今天到期，请尽快完成目标";
+            } else {
+                sdText = "§e本赛季剩余：§f" + p.seasonDaysRemaining + " §7天";
+            }
+
+            context.drawTextWithShadow(this.textRenderer, sdText, px + 6, y + 6, 0xFFFFFFFF);
+            y += sdH + 8;
+        }
+
         // ── 双列：资源 + 分支 ──
         int colW = (pw - 8) / 2;
         int colH = 44;
@@ -1261,6 +1284,21 @@ public class BattlePassScreen extends Screen {
 
         built.add(divider("赛季"));
         built.add(row(Text.translatable("haojing_battlepass.gui.home.season", player.themeName, player.seasonId)));
+
+        // 赛季倒计时（服务端 seasonStartDate 配置后才有值；-1 = 未配置，不显示）
+        if (player.seasonDaysRemaining != -1) {
+            if (player.seasonOverdue) {
+                built.add(row(Text.translatable("haojing_battlepass.gui.home.season_due")
+                        .formatted(Formatting.RED)));
+            } else if (player.seasonDaysRemaining == 0) {
+                built.add(row(Text.translatable("haojing_battlepass.gui.home.season_today")
+                        .formatted(Formatting.GOLD)));
+            } else {
+                built.add(row(Text.translatable("haojing_battlepass.gui.home.season_days",
+                        player.seasonDaysRemaining).formatted(Formatting.GOLD)));
+            }
+        }
+
         built.add(row(Text.translatable("haojing_battlepass.gui.home.level", player.level, player.maxLevel)));
         built.add(row(Text.translatable("haojing_battlepass.gui.home.xp", player.xp, player.xpForNext)));
         built.add(row(Text.translatable("haojing_battlepass.gui.home.remaining_xp",

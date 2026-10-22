@@ -46,6 +46,15 @@ public final class ModSnapshots {
         /** 赛季滚动后尚未播报的公告内容（由服务端拼好的可读文本），空串表示没有。 */
         public String pendingSeasonNotice = "";
 
+        /**
+         * 本赛季剩余天数（按自然日）。-1 = 未配置 seasonStartDate（无日程，不显示倒计时）；
+         * 0 = 到期日当天；负数 = 已超期（绝对值即超期天数）。首页倒计时文案由客户端按此渲染。
+         */
+        public int seasonDaysRemaining = -1;
+
+        /** 本赛季是否已到期（daysRemaining &lt; 0）。供客户端显示醒目红色提示。 */
+        public boolean seasonOverdue = false;
+
         /** GUI 视觉配置（颜色、社团链接等）。字段自带默认值，老客户端缺字段也不崩。 */
         public GuiStyle guiStyle = new GuiStyle();
 
@@ -276,6 +285,12 @@ public final class ModSnapshots {
         public String themeName = "";
         public boolean seasonEnabled = true;
         public int durationDays = 30;
+
+        /** 本赛季剩余天数（与玩家首页倒计时同源；-1 = 未配置 seasonStartDate）。 */
+        public int seasonDaysRemaining = -1;
+
+        /** 本赛季是否已到期（daysRemaining &lt; 0 且 != -1）。 */
+        public boolean seasonOverdue = false;
         public int maxLevel = 30;
         public int branchUnlockLevel = 10;
         public String dailyRefreshTime = "06:00";
