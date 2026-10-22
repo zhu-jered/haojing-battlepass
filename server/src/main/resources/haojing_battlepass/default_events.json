@@ -5,6 +5,10 @@
   "rollChance": 0.08,
   "minIntervalMinutes": 90,
   "announce": true,
+  "spawnMaxLightLevel": 7,
+  "spawnRadius": 8,
+  "spawnMaxAttempts": 12,
+  "spawnVerticalRange": 10,
   "events": [
     {
       "id": "ev_mob_surge",

@@ -219,6 +219,30 @@ public final class ServerAdminActions {
         randomEventManager.reload();
         milestoneManager.reload();
 
+        // 称号与披风管理器不在本类的构造参数里，通过服务端静态访问器拿；
+        // 补上这一步，管理员在 GUI 里保存 titles.json / capes.json 后立即生效（不必等维护轮询）。
+        com.haojing.battlepass.server.title.TitleManager titlesMgr =
+                com.haojing.battlepass.server.HaoJingBattlePassServer.titles();
+        if (titlesMgr != null) {
+            titlesMgr.reload();
+        }
+
+        com.haojing.battlepass.server.cape.CapeManager capesMgr =
+                com.haojing.battlepass.server.HaoJingBattlePassServer.capes();
+        if (capesMgr != null) {
+            long textureVersionBefore = capesMgr.textureVersion();
+            capesMgr.reload();
+
+            // 只在贴图字节真的变了的时候才重发：改的是"名字/解锁条件"就没必要刷全服玩家的贴图。
+            if (capesMgr.textureVersion() != textureVersionBefore) {
+                com.haojing.battlepass.server.net.ModNetworking net =
+                        com.haojing.battlepass.server.HaoJingBattlePassServer.networking();
+                if (net != null) {
+                    net.resendAllCapeTextures(server);
+                }
+            }
+        }
+
         if (syncService != null) {
             syncService.markAllPlayersDirty(server);
             syncService.setPopulation(server == null ? 0 : server.getPlayerManager().getPlayerList().size(),
@@ -734,6 +758,10 @@ public final class ServerAdminActions {
         files.add(paths.codesConfigFile());
         files.add(paths.eventsConfigFile());
         files.add(paths.milestonesConfigFile());
+        // 称号与披风过去没进清单，导致 GUI 里既列不出也存不了：
+        // titles.json 能显示但保存被白名单拒绝，capes.json 干脆不出现。
+        files.add(paths.titlesConfigFile());
+        files.add(paths.capesConfigFile());
         files.add(paths.stateFile());
         return files;
     }

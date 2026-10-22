@@ -513,6 +513,41 @@ public final class ModNetworking {
     }
 
     /**
+     * 把当前**内存里**的全部披风贴图重发给所有在线客户端。
+     *
+     * <p>用途：管理员直接替换 {@code config/haojing_battlepass/capes/*.png} 后，
+     * 已经戴着该披风的客户端仍显示旧贴图，过去必须让玩家手动重穿一次才会刷新。
+     * 服务端维护线程检测到贴图变化就调用本方法；客户端同名纹理注册时会先销毁旧纹理再注册新的，
+     * 因此重发即可完成热更新，玩家无需任何操作。
+     *
+     * <p>只重发当前戴着披风的玩家的那几件（通常 0~2 件），避免无谓刷包。
+     */
+    public void resendAllCapeTextures(MinecraftServer server) {
+        if (server == null) {
+            return;
+        }
+
+        java.util.LinkedHashSet<String> worn = new java.util.LinkedHashSet<>();
+
+        if (dataManager != null) {
+            for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
+                String capeId = String.valueOf(dataManager.global(p.getUuid()).equippedCape);
+                if (!capeId.isEmpty() && !"null".equals(capeId)) {
+                    worn.add(capeId);
+                }
+            }
+        }
+
+        for (String capeId : worn) {
+            byte[] bytes = capeManager == null ? null : capeManager.textureBytes(capeId);
+
+            if (bytes != null && bytes.length > 0) {
+                sendCapeTextureToAll(server, capeId, bytes);
+            }
+        }
+    }
+
+    /**
      * 新玩家进服时：把所有在线玩家已穿戴的披风贴图与穿戴状态发给他。
      * 同时把新玩家自己的披风状态广播出去。
      */

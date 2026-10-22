@@ -6,6 +6,7 @@ import com.haojing.battlepass.server.reward.RewardSink;
 import com.haojing.battlepass.common.data.Reward;
 import com.haojing.battlepass.common.data.RewardType;
 import com.haojing.battlepass.server.config.SeasonConfig;
+import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnReason;
@@ -15,7 +16,9 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -43,12 +46,16 @@ public final class RandomEventEffects {
     private final RewardSink rewardSink;
     private final Supplier<MinecraftServer> serverSupplier;
     private final Supplier<SeasonConfig> configSupplier;
+    private final Supplier<RandomEventConfig> eventConfigSupplier;
 
     public RandomEventEffects(RewardSink rewardSink, Supplier<MinecraftServer> serverSupplier,
-                              Supplier<SeasonConfig> configSupplier) {
+                              Supplier<SeasonConfig> configSupplier,
+                              Supplier<RandomEventConfig> eventConfigSupplier) {
         this.rewardSink = rewardSink;
         this.serverSupplier = serverSupplier;
         this.configSupplier = configSupplier;
+        // 注入空供应商时退化为读不到配置，选点逻辑走内置默认值，避免事件被构造失败拖垮。
+        this.eventConfigSupplier = eventConfigSupplier == null ? () -> null : eventConfigSupplier;
     }
 
     /**
@@ -148,6 +155,13 @@ public final class RandomEventEffects {
                 effect.value, seconds, effect.amount);
     }
 
+    /**
+     * 在玩家附近刷出一批实体（SPAWN 效果）。
+     *
+     * <p>2026-10 修复（玩家反馈：无视亮度直接生成会损坏生电机器）：旧实现直接在玩家脚下随机偏移刷怪，
+     * 不看亮度、不找地面，白天室内、火把照亮的基地与生电机房都会刷出怪物。新版每只怪物都要先找到一个
+     * {@link #findSpawnSpot 满足亮度与空间条件的暗点}；找不到就放弃这一只，绝不为凑数量硬刷到亮处。
+     */
     private void applySpawn(EventEffect effect, List<UUID> online) {
         MinecraftServer server = serverSupplier.get();
         Identifier id = Identifier.tryParse(effect.value);
@@ -164,22 +178,46 @@ public final class RandomEventEffects {
             return;
         }
 
+        RandomEventConfig policy = eventConfigSupplier.get();
+        final int maxLight;
+        final int radius;
+        final int attempts;
+        final int verticalRange;
+
+        if (policy == null) {
+            // 配置尚未加载时走内置默认值，口径与 default_events.json 一致。
+            maxLight = 7;
+            radius = 8;
+            attempts = 12;
+            verticalRange = 10;
+        } else {
+            maxLight = policy.effectiveSpawnMaxLightLevel();
+            radius = policy.effectiveSpawnRadius();
+            attempts = policy.effectiveSpawnMaxAttempts();
+            verticalRange = policy.effectiveSpawnVerticalRange();
+        }
+
         int perPlayer = Math.max(1, effect.amount);
         int spawned = 0;
+        int skipped = 0;
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             World world = player.getEntityWorld();
 
-            if (!(world instanceof net.minecraft.server.world.ServerWorld serverWorld)) {
+            if (!(world instanceof ServerWorld serverWorld)) {
                 continue;
             }
 
             Vec3d base = player.getEntityPos();
 
             for (int i = 0; i < perPlayer; i++) {
-                // 在玩家周围 8 格内随机偏移刷出：太近会卡在玩家身上，太远就看不到。
-                double offsetX = (world.random.nextDouble() - 0.5D) * 16.0D;
-                double offsetZ = (world.random.nextDouble() - 0.5D) * 16.0D;
+                BlockPos spot = findSpawnSpot(serverWorld, base, maxLight, radius, attempts, verticalRange);
+
+                if (spot == null) {
+                    // 尝试次数内找不到合法暗点：放弃这一只，不硬刷到亮处。
+                    skipped++;
+                    continue;
+                }
 
                 Entity entity = type.create(serverWorld, SpawnReason.EVENT);
 
@@ -187,7 +225,7 @@ public final class RandomEventEffects {
                     continue;
                 }
 
-                entity.refreshPositionAndAngles(base.x + offsetX, base.y, base.z + offsetZ,
+                entity.refreshPositionAndAngles(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D,
                         world.random.nextFloat() * 360.0F, 0.0F);
 
                 if (serverWorld.spawnEntity(entity)) {
@@ -196,7 +234,70 @@ public final class RandomEventEffects {
             }
         }
 
-        LOGGER.info("{} 随机事件效果：刷出 {} 个 {}", ModConstants.LOG_PREFIX, spawned, effect.value);
+        LOGGER.info("{} 随机事件效果：刷出 {} 个 {}（跳过 {} 个未找到暗点的候选）",
+                ModConstants.LOG_PREFIX, spawned, effect.value, skipped);
+    }
+
+    /**
+     * 在玩家周围找一个合法的怪物刷怪点：脚下实心、脚位与头顶是空气、亮度不超过阈值。
+     *
+     * <p>为什么自己做垂直探测而不是直接取高度图：旧实现把脚位直接取玩家 Y，会刷进方块或空中；
+     * 高度图只反映地表，室内屋顶、地下洞穴两类典型生电场景都不准。这里在玩家周围随机取列，
+     * 再在垂直窗口内自上而下找第一处"实心地面 + 上方两格空气"，最后复核亮度。
+     *
+     * @param serverWorld   当前世界
+     * @param base          玩家位置
+     * @param maxLight      允许刷怪的最高亮度（含）
+     * @param radius        水平半径（格）
+     * @param maxAttempts   最大候选列数
+     * @param verticalRange  与玩家的最大垂直高差（格）
+     * @return 合法刷怪点；找不到时返回 {@code null}
+     */
+    private BlockPos findSpawnSpot(ServerWorld serverWorld, Vec3d base, int maxLight,
+                                   int radius, int maxAttempts, int verticalRange) {
+        BlockPos origin = BlockPos.ofFloored(base);
+        int worldBottom = serverWorld.getBottomY();
+        int worldTop = worldBottom + serverWorld.getHeight() - 1;
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
+            int dx = serverWorld.random.nextInt(radius * 2 + 1) - radius;
+            int dz = serverWorld.random.nextInt(radius * 2 + 1) - radius;
+
+            // 离玩家水平两格以内容易卡在身上，直接换一个候选列。
+            if (Math.abs(dx) < 2 && Math.abs(dz) < 2) {
+                continue;
+            }
+
+            int x = origin.getX() + dx;
+            int z = origin.getZ() + dz;
+            int topY = Math.min(origin.getY() + verticalRange, worldTop);
+            int bottomY = Math.max(origin.getY() - verticalRange, worldBottom);
+
+            for (int y = topY; y >= bottomY; y--) {
+                BlockPos feet = new BlockPos(x, y, z);
+                BlockPos ground = feet.down();
+                BlockPos head = feet.up();
+
+                BlockState groundState = serverWorld.getBlockState(ground);
+                BlockState feetState = serverWorld.getBlockState(feet);
+                BlockState headState = serverWorld.getBlockState(head);
+
+                // 脚下必须是实心方块，脚位与头顶必须都是空气（与原版怪物生成口径一致）。
+                if (!groundState.isSolidBlock(serverWorld, ground)
+                        || !feetState.isAir() || !headState.isAir()) {
+                    continue;
+                }
+
+                // 亮度闸：白天露天、火把/灯照亮的基地与生电机房一律不刷。
+                if (serverWorld.getLightLevel(feet) > maxLight) {
+                    continue;
+                }
+
+                return feet;
+            }
+        }
+
+        return null;
     }
 
     private void runCommand(EventEffect effect) {

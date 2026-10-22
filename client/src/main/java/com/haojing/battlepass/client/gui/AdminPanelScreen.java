@@ -225,6 +225,16 @@ public class AdminPanelScreen extends Screen {
         addDrawableChild(ButtonWidget.builder(Text.translatable("gui.done"), widget -> close())
                 .dimensions(layout.panelX() + layout.panelWidth() - smallWidth - 2, footerY,
                         smallWidth, buttonHeight).build());
+
+        // 披风贴图目录：capes.json 只描述"有哪些披风"，真正的 64×32 PNG 放在同级 capes/ 目录里。
+        // 单独给一个入口，管理员不必先打开配置目录再手动进子目录。
+        int capeDirWidth = Math.max(70, layout.contentWidth() / 3);
+        if (footerY + buttonHeight + 2 <= layout.panelY() + layout.panelHeight() - 2) {
+            addDrawableChild(ButtonWidget.builder(Text.translatable("haojing_battlepass.admin.action.open_cape_dir"),
+                    widget -> openCapeTextureDir())
+                    .dimensions(layout.panelX() + 4, footerY + buttonHeight + 2,
+                            capeDirWidth, buttonHeight).build());
+        }
     }
 
     /**
@@ -316,6 +326,54 @@ public class AdminPanelScreen extends Screen {
             String first = admin.configFiles.get(0);
             java.io.File file = new java.io.File(first);
             java.io.File dir = file.getParentFile();
+            if (dir != null && dir.exists() && dir.isDirectory()) {
+                net.minecraft.util.Util.getOperatingSystem().open(dir);
+            }
+        } catch (RuntimeException ignored) {
+            // 远程服务器路径在本机不存在，静默忽略。
+        }
+    }
+
+    /**
+     * 打开披风贴图目录（{@code config/haojing_battlepass/capes/}）。
+     *
+     * <p>路径由服务端下发的 {@code capes.json} 绝对路径推出来（同目录下的 capes 子目录），
+     * 找不到时退回"配置目录/capes"。远程服务器上该路径在本机不存在，静默忽略。
+     */
+    private void openCapeTextureDir() {
+        var admin = ClientNetworking.state().admin();
+        if (admin == null || admin.configFiles == null) {
+            return;
+        }
+
+        try {
+            java.io.File dir = null;
+
+            for (String fullPath : admin.configFiles) {
+                if (fullPath == null) {
+                    continue;
+                }
+
+                String name = fullPath.replace('\\', '/');
+                int sep = name.lastIndexOf('/');
+                name = sep >= 0 ? name.substring(sep + 1) : name;
+
+                if ("capes.json".equals(name)) {
+                    java.io.File parent = new java.io.File(fullPath).getParentFile();
+                    if (parent != null) {
+                        dir = new java.io.File(parent, "capes");
+                    }
+                    break;
+                }
+            }
+
+            if (dir == null && !admin.configFiles.isEmpty()) {
+                java.io.File parent = new java.io.File(admin.configFiles.get(0)).getParentFile();
+                if (parent != null) {
+                    dir = new java.io.File(parent, "capes");
+                }
+            }
+
             if (dir != null && dir.exists() && dir.isDirectory()) {
                 net.minecraft.util.Util.getOperatingSystem().open(dir);
             }
@@ -663,6 +721,24 @@ public class AdminPanelScreen extends Screen {
                 lines.add(Text.translatable("haojing_battlepass.admin.line.online", admin.onlinePlayers,
                         admin.storedPlayers));
                 lines.add(Text.translatable("haojing_battlepass.admin.hint.file_edit"));
+
+                // 披风：这里给出清单与贴图有无，改名/解锁条件去「配置文件」页改 capes.json，
+                // 贴图 PNG 放披风贴图目录（面板底部的「打开披风贴图目录」按钮）。
+                ModSnapshots.Capes capes = ClientNetworking.state().capes();
+
+                if (capes != null && capes.definitions != null) {
+                    lines.add(Text.translatable("haojing_battlepass.admin.line.cape_count",
+                            capes.definitions.size()));
+
+                    for (ModSnapshots.CapeDef def : capes.definitions) {
+                        boolean hasTexture = def.textureFile != null && !def.textureFile.isBlank();
+                        lines.add(Text.literal("· " + def.id + "（" + def.name + "）"
+                                + (hasTexture ? " 贴图=" + def.textureFile : " 贴图=缺失")));
+                    }
+
+                    lines.add(Text.translatable("haojing_battlepass.admin.hint.cape_editor"));
+                }
+
                 break;
             default:
                 lines.add(Text.translatable("haojing_battlepass.admin.line.season", admin.seasonId, admin.themeName));

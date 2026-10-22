@@ -40,6 +40,21 @@ public class RandomEventConfig {
     /** 是否全服公告事件开始/结束。 */
     public boolean announce = true;
 
+    // ---- 怪物潮刷怪策略（2026-10 玩家反馈：旧逻辑无视亮度直接在玩家身边刷怪，
+    // 会把怪物刷进点亮的基地与生电机房，导致机器被破坏。以下参数统一约束所有 SPAWN 效果的选点。）----
+
+    /** 允许刷怪的最高亮度（0~15）；位置亮度超过该值一律跳过。默认 7，与原版敌对怪夜间口径一致。 */
+    public int spawnMaxLightLevel = 7;
+
+    /** 以玩家为中心的水平刷怪半径（格）。 */
+    public int spawnRadius = 8;
+
+    /** 每只怪物寻找合法暗点的最大尝试次数；尝试完仍找不到就放弃这一只，绝不强制刷在亮处。 */
+    public int spawnMaxAttempts = 12;
+
+    /** 候选位置与玩家的最大垂直高差（格），避免刷到头顶屋顶或脚下洞穴深处。 */
+    public int spawnVerticalRange = 10;
+
     /** 事件清单。 */
     public List<RandomEventDefinition> events = new ArrayList<>();
 
@@ -74,6 +89,34 @@ public class RandomEventConfig {
         if (minIntervalMinutes < 60) {
             LOGGER.warn("{} minIntervalMinutes={} 小于需求文档 §10 的默认下限 60 分钟，请确认是否有意为之",
                     ModConstants.LOG_PREFIX, minIntervalMinutes);
+        }
+
+        if (spawnMaxLightLevel < 0 || spawnMaxLightLevel > 15) {
+            int clamped = Math.max(0, Math.min(15, spawnMaxLightLevel));
+            LOGGER.warn("{} spawnMaxLightLevel={} 超出 0~15，已夹紧为 {}",
+                    ModConstants.LOG_PREFIX, spawnMaxLightLevel, clamped);
+            spawnMaxLightLevel = clamped;
+        }
+
+        if (spawnRadius < 1 || spawnRadius > 32) {
+            int clamped = Math.max(1, Math.min(32, spawnRadius));
+            LOGGER.warn("{} spawnRadius={} 超出 1~32，已夹紧为 {}",
+                    ModConstants.LOG_PREFIX, spawnRadius, clamped);
+            spawnRadius = clamped;
+        }
+
+        if (spawnMaxAttempts < 1 || spawnMaxAttempts > 32) {
+            int clamped = Math.max(1, Math.min(32, spawnMaxAttempts));
+            LOGGER.warn("{} spawnMaxAttempts={} 超出 1~32，已夹紧为 {}",
+                    ModConstants.LOG_PREFIX, spawnMaxAttempts, clamped);
+            spawnMaxAttempts = clamped;
+        }
+
+        if (spawnVerticalRange < 1 || spawnVerticalRange > 32) {
+            int clamped = Math.max(1, Math.min(32, spawnVerticalRange));
+            LOGGER.warn("{} spawnVerticalRange={} 超出 1~32，已夹紧为 {}",
+                    ModConstants.LOG_PREFIX, spawnVerticalRange, clamped);
+            spawnVerticalRange = clamped;
         }
 
         if (events == null) {
@@ -201,5 +244,25 @@ public class RandomEventConfig {
     /** @return 最小间隔毫秒数。 */
     public long minIntervalMillis() {
         return Math.max(0, minIntervalMinutes) * 60_000L;
+    }
+
+    /** @return 夹紧后的允许刷怪最高亮度（0~15），绕过 {@link #validate()} 直读字段时也不会越界。 */
+    public int effectiveSpawnMaxLightLevel() {
+        return Math.max(0, Math.min(15, spawnMaxLightLevel));
+    }
+
+    /** @return 夹紧后的水平刷怪半径（1~32）。 */
+    public int effectiveSpawnRadius() {
+        return Math.max(1, Math.min(32, spawnRadius));
+    }
+
+    /** @return 夹紧后的单只怪物最大找位尝试次数（1~32）。 */
+    public int effectiveSpawnMaxAttempts() {
+        return Math.max(1, Math.min(32, spawnMaxAttempts));
+    }
+
+    /** @return 夹紧后的垂直高差上限（1~32）。 */
+    public int effectiveSpawnVerticalRange() {
+        return Math.max(1, Math.min(32, spawnVerticalRange));
     }
 }

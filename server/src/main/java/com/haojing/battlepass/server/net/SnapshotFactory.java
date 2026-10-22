@@ -461,6 +461,7 @@ public final class SnapshotFactory {
             snapshot.configFiles.add(paths.eventsConfigFile().toAbsolutePath().toString());
             snapshot.configFiles.add(paths.milestonesConfigFile().toAbsolutePath().toString());
             snapshot.configFiles.add(paths.titlesConfigFile().toAbsolutePath().toString());
+            snapshot.configFiles.add(paths.capesConfigFile().toAbsolutePath().toString());
             snapshot.configFiles.add(paths.stateFile().toAbsolutePath().toString());
         }
 

@@ -17,6 +17,7 @@ import com.haojing.battlepass.server.longnight.LongNightManager;
 import com.haojing.battlepass.server.milestone.MilestoneManager;
 import com.haojing.battlepass.server.milestone.MilestoneMetric;
 import com.haojing.battlepass.server.milestone.MilestoneService;
+import com.haojing.battlepass.server.net.ModNetworking;
 import com.haojing.battlepass.server.redeem.RedeemCodeEvents;
 import com.haojing.battlepass.server.redeem.RedeemCodeManager;
 import com.haojing.battlepass.server.redeem.RedeemCodeService;
@@ -183,6 +184,16 @@ public class HaoJingBattlePassServer implements ModInitializer {
         return titleManager;
     }
 
+    /** @return 披风管理器；未初始化时为 {@code null}。管理面板需要它来展示/重载披风。 */
+    public static com.haojing.battlepass.server.cape.CapeManager capes() {
+        return capeManager;
+    }
+
+    /** @return 网络层；未初始化时为 {@code null}。用于把更新后的披风贴图推给在线客户端。 */
+    public static ModNetworking networking() {
+        return networking;
+    }
+
     @Override
     public void onInitialize() {
         ServerLifecycleEvents.SERVER_STARTING.register(this::initModules);
@@ -344,7 +355,18 @@ public class HaoJingBattlePassServer implements ModInitializer {
             com.haojing.battlepass.server.cape.CapeManager capesMgr = capeManager;
 
             if (capesMgr != null) {
+                long textureVersionBefore = capesMgr.textureVersion();
                 capesMgr.reloadIfChanged();
+
+                // 管理员直接替换了 capes/*.png 时，已经戴着这件披风的客户端还挂着旧贴图。
+                // 过去要玩家自己重新穿戴一次才会刷新，现在检测到贴图版本变化就主动重发。
+                if (capesMgr.textureVersion() != textureVersionBefore) {
+                    ModNetworking net = networking;
+
+                    if (net != null) {
+                        net.resendAllCapeTextures(server);
+                    }
+                }
             }
         } catch (RuntimeException e) {
             LOGGER.warn("{} 配置热重载检查出现异常（本轮跳过）：{}", ModConstants.LOG_PREFIX, e.toString());
@@ -614,7 +636,8 @@ public class HaoJingBattlePassServer implements ModInitializer {
             redeemCodeService = redeemService;
 
             // 随机事件：公告与效果由同一个回调驱动，避免"公告发了但效果忘了放"。
-            RandomEventEffects effects = new RandomEventEffects(sink, () -> server, configs::config);
+            // 第四个参数提供事件配置（刷怪亮度/半径等策略），热重载后下一场事件立即生效。
+            RandomEventEffects effects = new RandomEventEffects(sink, () -> server, configs::config, events::config);
             RandomEventService eventService = new RandomEventService(events);
             eventService.setRewardSink(sink);
             eventService.setAnnouncer((definition, started, participants) -> {
