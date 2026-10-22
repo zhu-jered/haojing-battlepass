@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "_comment": "赛季结算奖励：赛季轮换时按玩家旧赛季最终等级命中首个匹配档位一次性发放，只发数值/装饰类奖励，不提供属性或 buff。档位区间重叠时以配置中先出现的为准；未命中任何档位不发奖。奖励类型支持 BATTLEPASS_XP / STAR_COIN / EXEMPT_CARD / ITEM / COMMAND / TITLE。",
+  "enabled": true,
+  "tiers": [
+    {
+      "minLevel": 1,
+      "maxLevel": 4,
+      "rewards": [ { "type": "STAR_COIN", "amount": 20 } ]
+    },
+    {
+      "minLevel": 5,
+      "maxLevel": 9,
+      "rewards": [ { "type": "STAR_COIN", "amount": 35 }, { "type": "BATTLEPASS_XP", "amount": 100 } ]
+    },
+    {
+      "minLevel": 10,
+      "maxLevel": 14,
+      "rewards": [ { "type": "STAR_COIN", "amount": 50 }, { "type": "EXEMPT_CARD", "amount": 1 } ]
+    },
+    {
+      "minLevel": 15,
+      "maxLevel": 19,
+      "rewards": [ { "type": "STAR_COIN", "amount": 70 }, { "type": "BATTLEPASS_XP", "amount": 200 } ]
+    },
+    {
+      "minLevel": 20,
+      "maxLevel": 24,
+      "rewards": [ { "type": "STAR_COIN", "amount": 90 }, { "type": "EXEMPT_CARD", "amount": 1 } ]
+    },
+    {
+      "minLevel": 25,
+      "maxLevel": 29,
+      "rewards": [ { "type": "STAR_COIN", "amount": 120 }, { "type": "BATTLEPASS_XP", "amount": 300 } ]
+    },
+    {
+      "minLevel": 30,
+      "maxLevel": 30,
+      "rewards": [ { "type": "STAR_COIN", "amount": 200 }, { "type": "EXEMPT_CARD", "amount": 1 }, { "type": "BATTLEPASS_XP", "amount": 500 } ]
+    }
+  ]
+}

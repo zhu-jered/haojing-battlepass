@@ -244,7 +244,12 @@ public final class TaskAssignmentService implements AutoCloseable {
                 || !businessDate.equals(season.lastDailyRefreshDate);
         boolean weeklyMissing = season.weeklyTasks == null || season.weeklyTasks.isEmpty();
 
-        if (!dailyMissing && !weeklyMissing) {
+        // 赛季挑战不随日/周刷新，但进服时必须把池内任务一次性补齐（热重载新增任务也在此补齐）；
+        // 已有进度保留，不重新开始。
+        boolean seasonalMissing = season.seasonalTasks == null
+                || season.seasonalTasks.size() != pool.allSeasonal().size();
+
+        if (!dailyMissing && !weeklyMissing && !seasonalMissing) {
             return false;
         }
 
@@ -256,13 +261,18 @@ public final class TaskAssignmentService implements AutoCloseable {
             rollWeeklyInto(season, pool);
         }
 
+        if (seasonalMissing) {
+            rollSeasonalInto(season, pool);
+        }
+
         dataManager.markSeasonDirty(playerUuid);
         // 任务换了，进度索引必须重建，否则会继续往旧任务上加进度。
         tracker.invalidate(playerUuid);
 
-        LOGGER.info("{} 玩家 {} 进服时补齐任务（每日{} / 每周{}，业务日 {}）",
+        LOGGER.info("{} 玩家 {} 进服时补齐任务（每日{} / 每周{} / 赛季{}，业务日 {}）",
                 ModConstants.LOG_PREFIX, playerUuid,
-                dailyMissing ? "已重抽" : "无需处理", weeklyMissing ? "已重抽" : "无需处理", businessDate);
+                dailyMissing ? "已重抽" : "无需处理", weeklyMissing ? "已重抽" : "无需处理",
+                seasonalMissing ? "已补齐" : "无需处理", businessDate);
         return true;
     }
 
@@ -365,6 +375,23 @@ public final class TaskAssignmentService implements AutoCloseable {
         }
     }
 
+    /**
+     * 把赛季挑战池内的任务一次性纳入玩家存档。
+     *
+     * <p>与每日/每周不同，赛季挑战是"池内全量分配"，不随机抽取、不限制数量：
+     * 已有进度保留，热重载新增的任务补一个 NOT_ACTIVE 进度；存档里遗留、池内已删除的任务
+     * 不主动清除（与每周口径一致，真正清理发生在赛季轮换时）。
+     */
+    void rollSeasonalInto(SeasonData season, TaskPool pool) {
+        if (season.seasonalTasks == null) {
+            season.seasonalTasks = new java.util.LinkedHashMap<>();
+        }
+
+        for (TaskDefinition definition : pool.allSeasonal()) {
+            season.seasonalTasks.computeIfAbsent(definition.id, id -> new TaskProgress(id));
+        }
+    }
+
     private void refreshOffline(List<UUID> offline, TaskPool pool, boolean needDaily, boolean needWeekly,
                                 String businessDate, String weekStart) {
         long started = System.currentTimeMillis();
@@ -385,6 +412,11 @@ public final class TaskAssignmentService implements AutoCloseable {
 
                 if (season.weeklyTasks == null) {
                     season.weeklyTasks = new java.util.LinkedHashMap<>();
+                }
+
+                // 赛季挑战不随日/周刷新；这里只补 null 兜底，任务在玩家进服时由 ensureAssigned 补齐。
+                if (season.seasonalTasks == null) {
+                    season.seasonalTasks = new java.util.LinkedHashMap<>();
                 }
 
                 if (applyRefresh(season, pool, needDaily, needWeekly, businessDate)) {

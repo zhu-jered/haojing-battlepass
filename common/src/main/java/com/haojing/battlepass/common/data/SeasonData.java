@@ -103,6 +103,15 @@ public class SeasonData {
     public Map<String, TaskProgress> weeklyTasks = new LinkedHashMap<>();
 
     /**
+     * 赛季挑战进度，键为任务 ID。
+     *
+     * <p>与每日/每周任务的区别：赛季挑战贯穿整个赛季，不随业务日或周一起刷新，
+     * 不可重 roll、不可跳过、也不占用每日选组流程；赛季轮换时随赛季数据一并清空。
+     * 旧存档缺这个字段时 Gson 给空 Map，行为等同于"本赛季尚未分配赛季挑战"，不会崩。
+     */
+    public Map<String, TaskProgress> seasonalTasks = new LinkedHashMap<>();
+
+    /**
      * 彩蛋进度，键为彩蛋 ID（需求文档 §6）。
      *
      * <p>为什么放在赛季数据里：§6 的"大地勘探者"要求"本赛季内"进入三种洞穴群系，

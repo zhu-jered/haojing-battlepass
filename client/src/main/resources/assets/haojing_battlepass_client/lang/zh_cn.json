@@ -30,6 +30,7 @@
   "haojing_battlepass.gui.tab.titles": "称号",
   "haojing_battlepass.gui.tab.collection": "收藏",
   "haojing_battlepass.gui.tab.ranking": "排行",
+  "haojing_battlepass.gui.tab.seasonal": "赛季",
 
   "haojing_battlepass.gui.home.season": "赛季：%s（%s）",
   "haojing_battlepass.gui.home.season_days": "本赛季剩余：%s 天",
@@ -366,6 +367,10 @@
   "haojing_battlepass.gui.ranking.disabled": "排行榜当前未开启",
   "haojing_battlepass.gui.ranking.me_rank": "我的名次：第 %s 名",
   "haojing_battlepass.gui.ranking.me_absent": "我的名次：未上榜",
+
+  "haojing_battlepass.gui.seasonal.title": "赛季挑战",
+  "haojing_battlepass.gui.seasonal.empty": "本赛季暂无挑战任务",
+  "haojing_battlepass.gui.seasonal.hint": "贯穿整赛季的长期目标，完成后自动发奖，轮换时进度清零。",
 
   "haojing_battlepass.action.checkin.ok": "签到成功，奖励已发放。",
   "haojing_battlepass.action.checkin.already": "今天已经签到过了。",

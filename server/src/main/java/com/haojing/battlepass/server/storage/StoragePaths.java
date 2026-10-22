@@ -141,6 +141,11 @@ public final class StoragePaths {
         return configDir.resolve("checkin.json");
     }
 
+    /** @return 赛季结算奖励档位配置（config/&lt;模组名&gt;/settlement.json）。 */
+    public Path settlementConfigFile() {
+        return configDir.resolve("settlement.json");
+    }
+
     /**
      * @return 全服状态文件（data/&lt;模组名&gt;/state.json）。
      *

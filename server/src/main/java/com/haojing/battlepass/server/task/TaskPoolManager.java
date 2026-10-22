@@ -73,10 +73,11 @@ public final class TaskPoolManager {
         writeQuietly(loaded);
         changeDetector.reset(file);
 
-        LOGGER.info("{} 任务池已加载：每日 {} 个（探险 {}/建造 {}/综合 {}），每周 {} 个（抽取 {}）",
+        LOGGER.info("{} 任务池已加载：每日 {} 个（探险 {}/建造 {}/综合 {}），每周 {} 个（抽取 {}），赛季挑战 {} 个",
                 ModConstants.LOG_PREFIX, loaded.dailyPoolSize(),
                 loaded.group("explore").size(), loaded.group("build").size(), loaded.group("general").size(),
-                loaded.allWeekly().size(), Math.min(loaded.weeklyCount, loaded.allWeekly().size()));
+                loaded.allWeekly().size(), Math.min(loaded.weeklyCount, loaded.allWeekly().size()),
+                loaded.allSeasonal().size());
 
         return loaded;
     }

@@ -201,4 +201,56 @@ class TaskAssignmentServiceTest {
         assertFalse(service.rerollGroup(id, "not_a_group"));
         assertFalse(service.rerollGroup(id, null));
     }
+
+    // ── D-38 赛季挑战：整赛季一次性全量分配，不随每日/每周刷新重置进度 ──
+
+    @Test
+    void 新玩家进服时一次性补齐全部赛季挑战(@TempDir Path tmp) throws IOException {
+        setUp(tmp);
+        UUID id = UUID.randomUUID();
+
+        service.ensureAssigned(id);
+
+        SeasonData season = data.season(id);
+        assertEquals(pools.pool().allSeasonal().size(), season.seasonalTasks.size(),
+                "赛季挑战按池内全量分配，不随机抽取、不限数量");
+        assertFalse(season.seasonalTasks.isEmpty(), "内置默认池应有 6 条赛季挑战");
+
+        for (TaskProgress progress : season.seasonalTasks.values()) {
+            assertEquals(0, progress.progress, "新分配的赛季挑战进度从 0 开始");
+        }
+    }
+
+    @Test
+    void 赛季挑战进度不随每日强制刷新丢失(@TempDir Path tmp) throws IOException {
+        setUp(tmp);
+        UUID id = UUID.randomUUID();
+
+        service.ensureAssigned(id);
+        SeasonData season = data.season(id);
+        String seasonalId = season.seasonalTasks.keySet().iterator().next();
+        season.seasonalTasks.get(seasonalId).progress = 8;
+
+        service.forceDailyRefresh(id);
+
+        assertEquals(pools.pool().allSeasonal().size(), season.seasonalTasks.size(),
+                "每日重抽不应清掉赛季挑战");
+        assertEquals(8, season.seasonalTasks.get(seasonalId).progress,
+                "赛季挑战是整赛季目标，进度必须保留");
+    }
+
+    @Test
+    void 补分配赛季挑战时保留已有进度(@TempDir Path tmp) throws IOException {
+        setUp(tmp);
+        SeasonData season = data.season(UUID.randomUUID());
+        String existingId = pools.pool().allSeasonal().get(0).id;
+        season.seasonalTasks.put(existingId, new TaskProgress(existingId));
+        season.seasonalTasks.get(existingId).progress = 9;
+
+        service.rollSeasonalInto(season, pools.pool());
+
+        assertEquals(9, season.seasonalTasks.get(existingId).progress, "已做过一半的进度不能被覆盖归零");
+        assertEquals(pools.pool().allSeasonal().size(), season.seasonalTasks.size(),
+                "池内其余赛季挑战应补齐为初始进度");
+    }
 }

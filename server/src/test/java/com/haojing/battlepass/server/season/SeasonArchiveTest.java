@@ -49,6 +49,10 @@ class SeasonArchiveTest {
         weekly.setStatus(TaskStatus.COMPLETED);
         season.weeklyTasks.put("w", weekly);
 
+        TaskProgress seasonal = new TaskProgress("s");
+        seasonal.setStatus(TaskStatus.CLAIMED);
+        season.seasonalTasks.put("s", seasonal);
+
         SeasonArchive.ArchivePlayer entry = SeasonArchive.ArchivePlayer.of(season, "玩家甲");
 
         assertEquals("u1", entry.playerUuid);
@@ -59,6 +63,7 @@ class SeasonArchiveTest {
         assertEquals(Branch.HUNT, entry.branch());
         assertEquals(2, entry.completedDailyTasks, "完成与已领取都算完成");
         assertEquals(1, entry.completedWeeklyTasks);
+        assertEquals(1, entry.completedSeasonalTasks, "赛季挑战完成数同样纳入归档统计");
     }
 
     @Test
@@ -66,11 +71,13 @@ class SeasonArchiveTest {
         SeasonData season = seasonOf("u1", 1, "S1");
         season.dailyTasks = null;
         season.weeklyTasks = null;
+        season.seasonalTasks = null;
 
         SeasonArchive.ArchivePlayer entry = SeasonArchive.ArchivePlayer.of(season, null);
 
         assertEquals(0, entry.completedDailyTasks);
         assertEquals(0, entry.completedWeeklyTasks);
+        assertEquals(0, entry.completedSeasonalTasks);
         assertEquals("", entry.playerName);
     }
 

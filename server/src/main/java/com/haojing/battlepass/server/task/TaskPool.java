@@ -47,6 +47,9 @@ public class TaskPool {
     /** 每周挑战池。 */
     public List<TaskDefinition> weekly = new ArrayList<>();
 
+    /** 赛季挑战池：贯穿整赛季的长线目标，不随日/周刷新，不可重 roll 或跳过。 */
+    public List<TaskDefinition> seasonal = new ArrayList<>();
+
     /** @param group 组名 @return 该组的任务列表（永不为 null）。 */
     public List<TaskDefinition> group(String group) {
         List<TaskDefinition> list = groups == null ? null : groups.get(group);
@@ -79,7 +82,22 @@ public class TaskPool {
         return all;
     }
 
-    /** @return 按任务 ID 索引的全部任务（每日 + 每周），用于按存档里的进度反查任务定义。 */
+    /** @return 全部赛季挑战（去掉 null 项）。 */
+    public List<TaskDefinition> allSeasonal() {
+        List<TaskDefinition> all = new ArrayList<>();
+
+        if (seasonal != null) {
+            for (TaskDefinition task : seasonal) {
+                if (task != null) {
+                    all.add(task);
+                }
+            }
+        }
+
+        return all;
+    }
+
+    /** @return 按任务 ID 索引的全部任务（每日 + 每周 + 赛季挑战），用于按存档里的进度反查任务定义。 */
     public Map<String, TaskDefinition> indexById() {
         Map<String, TaskDefinition> index = new HashMap<>();
 
@@ -91,6 +109,10 @@ public class TaskPool {
             index.put(task.id, task);
         }
 
+        for (TaskDefinition task : allSeasonal()) {
+            index.put(task.id, task);
+        }
+
         return index;
     }
 
@@ -99,9 +121,9 @@ public class TaskPool {
         return allDaily().size();
     }
 
-    /** @return 任务总数（每日 + 每周）。 */
+    /** @return 任务总数（每日 + 每周 + 赛季挑战）。 */
     public int totalSize() {
-        return dailyPoolSize() + allWeekly().size();
+        return dailyPoolSize() + allWeekly().size() + allSeasonal().size();
     }
 
     /**
@@ -136,6 +158,12 @@ public class TaskPool {
         }
 
         dropped += pruneList(weekly, "每周挑战", idOwner, counter);
+
+        if (seasonal == null) {
+            seasonal = new ArrayList<>();
+        }
+
+        dropped += pruneList(seasonal, "赛季挑战", idOwner, counter);
 
         if (weeklyCount < 1) {
             LOGGER.warn("{} 任务池 weeklyCount={} 非法，已回退为 {}", ModConstants.LOG_PREFIX, weeklyCount, DEFAULT_WEEKLY_COUNT);

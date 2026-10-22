@@ -20,6 +20,12 @@ public enum XpSource {
     /** 每周挑战领取。 */
     WEEKLY_TASK("每周挑战"),
 
+    /** 赛季挑战领取（贯穿整赛季的长线任务）。 */
+    SEASONAL_TASK("赛季挑战"),
+
+    /** 赛季结束按最终等级档位发放的结算奖励。 */
+    SETTLEMENT("赛季结算"),
+
     /** 等级奖励表里的 BATTLEPASS_XP。 */
     LEVEL_REWARD("等级奖励"),
 

@@ -109,6 +109,14 @@ public final class SeasonResetService implements AutoCloseable {
     /** 赛季日程提醒出口；未注入（setter）时提醒只记日志、不播报。 */
     private volatile ScheduleAnnouncer scheduleAnnouncer;
 
+    /** 赛季结算奖励服务；未注入（setter）时轮换流程照常，只是不发结算奖励。 */
+    private volatile com.haojing.battlepass.server.settlement.SettlementService settlementService;
+
+    /** 注入赛季结算奖励服务（setter 注入，避免改动既有构造签名影响测试环境装配）。 */
+    public void setSettlementService(com.haojing.battlepass.server.settlement.SettlementService service) {
+        this.settlementService = service;
+    }
+
     /**
      * 日程判断用的时钟。默认取北京时间，测试注入固定时刻让用例确定性化。
      * （为什么不用参数传入：checkAndAnnounceSchedule 每天被维护线程调用，
@@ -164,6 +172,8 @@ public final class SeasonResetService implements AutoCloseable {
         season.exemptCards = 0;
         season.dailyTasks = new LinkedHashMap<>();
         season.weeklyTasks = new LinkedHashMap<>();
+        // 赛季挑战与每日/每周同属赛季内进度，轮换后随赛季清零，新赛季重新分配。
+        season.seasonalTasks = new LinkedHashMap<>();
         season.claimedLevelRewards = new LinkedHashSet<>();
         // §6 的"大地勘探者"要求"本赛季内"、赛季限定彩蛋更是必须随赛季失效，
         // 因此彩蛋**进度**一并清空；已经解锁的记录在永久数据的收藏册里，不受影响。
@@ -175,6 +185,27 @@ public final class SeasonResetService implements AutoCloseable {
         season.signInStreak = 0;
         season.seasonSignInCount = 0;
         season.claimedStreakMilestones = new LinkedHashSet<>();
+    }
+
+    /**
+     * 在清空赛季数据之前，按旧赛季最终等级发放结算奖励。
+     *
+     * <p>未注入结算服务时直接跳过；单条/单玩家结算异常被捕获并记日志，不阻断轮换主流程
+     * （与离线玩家"单个失败不影响其他人"的口径一致）。
+     */
+    private void settleBeforeReset(UUID uuid, SeasonData season) {
+        com.haojing.battlepass.server.settlement.SettlementService settlement = settlementService;
+
+        if (settlement == null) {
+            return;
+        }
+
+        try {
+            settlement.grantSettlement(uuid, season.level, season.seasonId);
+        } catch (RuntimeException e) {
+            LOGGER.error("{} 玩家 {} 赛季结算奖励发放异常（不阻断轮换）：{}",
+                    ModConstants.LOG_PREFIX, uuid, e.toString());
+        }
     }
 
     /**
@@ -215,6 +246,8 @@ public final class SeasonResetService implements AutoCloseable {
                 }
 
                 entries.add(SeasonArchive.ArchivePlayer.of(season, playerName(uuid)));
+                // 结算必须在清空赛季数据之前：先按旧赛季最终等级发奖，再重置等级/经验/任务。
+                settleBeforeReset(uuid, season);
                 resetSeasonData(season, target);
                 dataManager.markSeasonDirty(uuid);
                 tracker.invalidate(uuid);
@@ -524,6 +557,8 @@ public final class SeasonResetService implements AutoCloseable {
                 }
 
                 entries.add(SeasonArchive.ArchivePlayer.of(season, playerName(uuid)));
+                // 离线玩家同样先按旧等级结算，再清空赛季数据；结算失败不阻断该玩家归档重置。
+                settleBeforeReset(uuid, season);
                 resetSeasonData(season, target);
                 jsonStore.write(file, season);
                 reset++;

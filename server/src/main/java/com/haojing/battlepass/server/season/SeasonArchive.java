@@ -74,6 +74,9 @@ public class SeasonArchive {
         /** 已完成的每周挑战数。 */
         public int completedWeeklyTasks = 0;
 
+        /** 已完成的赛季挑战数。 */
+        public int completedSeasonalTasks = 0;
+
         public ArchivePlayer() {
         }
 
@@ -104,6 +107,7 @@ public class SeasonArchive {
             entry.branch = season.branch().name();
             entry.completedDailyTasks = countCompleted(season.dailyTasks == null ? null : season.dailyTasks.values());
             entry.completedWeeklyTasks = countCompleted(season.weeklyTasks == null ? null : season.weeklyTasks.values());
+            entry.completedSeasonalTasks = countCompleted(season.seasonalTasks == null ? null : season.seasonalTasks.values());
 
             return entry;
         }

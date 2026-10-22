@@ -400,6 +400,8 @@ public final class BattlePassService {
         }
 
         boolean isWeekly = season.weeklyTasks != null && season.weeklyTasks.containsKey(taskId);
+        // 赛季挑战与每周并列豁免"每日选组"校验；归属判定顺序：每周 → 赛季 → 每日。
+        boolean isSeasonal = !isWeekly && season.seasonalTasks != null && season.seasonalTasks.containsKey(taskId);
 
         // 检查 + 置位必须是原子的：本方法将来会由数据包（阶段 7）触发，
         // 玩家手速够快就能在同一 tick 内点到两次。
@@ -422,7 +424,9 @@ public final class BattlePassService {
         XpGrantResult xpResult = null;
 
         if (definition.xp > 0) {
-            xpResult = addXp(playerUuid, definition.xp, isWeekly ? XpSource.WEEKLY_TASK : XpSource.DAILY_TASK);
+            XpSource source = isWeekly ? XpSource.WEEKLY_TASK
+                    : isSeasonal ? XpSource.SEASONAL_TASK : XpSource.DAILY_TASK;
+            xpResult = addXp(playerUuid, definition.xp, source);
         }
 
         int starCoin = 0;
@@ -434,8 +438,8 @@ public final class BattlePassService {
             starCoin = definition.starCoin;
         }
 
-        LOGGER.info("{} 玩家 {} 领取任务奖励 {}（每周={} 经验 {} 京币 {}）",
-                ModConstants.LOG_PREFIX, playerUuid, taskId, isWeekly, definition.xp, starCoin);
+        LOGGER.info("{} 玩家 {} 领取任务奖励 {}（每周={} 赛季={} 经验 {} 京币 {}）",
+                ModConstants.LOG_PREFIX, playerUuid, taskId, isWeekly, isSeasonal, definition.xp, starCoin);
 
         metricSink.add(MilestoneMetric.TASKS_CLAIMED, 1L);
 
@@ -576,7 +580,7 @@ public final class BattlePassService {
 
     // ------------------------------------------------------------------
 
-    /** 在每日/每周任务里按任务 ID 找进度对象。 */
+    /** 在每日/每周/赛季任务里按任务 ID 找进度对象。 */
     private TaskProgress findProgress(SeasonData season, String taskId) {
         if (season.dailyTasks != null) {
             for (TaskProgress progress : season.dailyTasks.values()) {
@@ -591,6 +595,14 @@ public final class BattlePassService {
 
             if (weekly != null) {
                 return weekly;
+            }
+        }
+
+        if (season.seasonalTasks != null) {
+            TaskProgress seasonal = season.seasonalTasks.get(taskId);
+
+            if (seasonal != null) {
+                return seasonal;
             }
         }
 

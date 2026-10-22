@@ -335,6 +335,10 @@ public final class PlayerDataManager implements AutoCloseable {
             data.weeklyTasks = new LinkedHashMap<>();
         }
 
+        if (data.seasonalTasks == null) {
+            data.seasonalTasks = new LinkedHashMap<>();
+        }
+
         if (data.claimedLevelRewards == null) {
             data.claimedLevelRewards = new java.util.LinkedHashSet<>();
         }

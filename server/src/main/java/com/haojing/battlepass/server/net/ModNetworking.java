@@ -219,11 +219,13 @@ public final class ModNetworking {
                 break;
             }
             case CLAIM: {
-                // 领奖前校验：每日任务必须属于本日已选定的组；每周任务不受此限。
+                // 领奖前校验：每日任务必须属于本日已选定的组；每周/赛季挑战不受此限。
                 var seasonClaim = dataManager.season(player.getUuid());
                 boolean isWeeklyClaim = seasonClaim.weeklyTasks != null
                         && seasonClaim.weeklyTasks.containsKey(arg);
-                if (!isWeeklyClaim) {
+                boolean isSeasonalClaim = !isWeeklyClaim && seasonClaim.seasonalTasks != null
+                        && seasonClaim.seasonalTasks.containsKey(arg);
+                if (!isWeeklyClaim && !isSeasonalClaim) {
                     String groupOfTask = groupOfDailyTask(seasonClaim, arg);
                     String chosen = seasonClaim.chosenDailyGroup == null ? "" : seasonClaim.chosenDailyGroup;
                     if (groupOfTask == null || !chosen.equals(groupOfTask)) {

@@ -308,6 +308,12 @@ public final class TaskProgressTracker {
             }
         }
 
+        if (season.seasonalTasks != null) {
+            for (Map.Entry<String, TaskProgress> entry : season.seasonalTasks.entrySet()) {
+                addToIndex(index, definitions.get(entry.getKey()), entry.getValue());
+            }
+        }
+
         return index;
     }
 

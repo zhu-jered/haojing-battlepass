@@ -1,6 +1,7 @@
 package com.haojing.battlepass.server.season;
 
 import com.haojing.battlepass.common.data.Branch;
+import com.haojing.battlepass.common.data.RewardType;
 import com.haojing.battlepass.common.data.SeasonData;
 import com.haojing.battlepass.common.data.TaskProgress;
 import com.haojing.battlepass.common.data.TaskStatus;
@@ -530,5 +531,75 @@ class SeasonResetServiceTest {
         assertEquals("S11", SeasonResetService.nextSeasonId("S10", dec1), "两位数正常进位");
         assertEquals("S2", SeasonResetService.nextSeasonId("", dec1), "空 ID 兜底从 S2 起");
         assertEquals("beta-2026-12", SeasonResetService.nextSeasonId("beta", dec1));
+    }
+
+    // ── D-39 赛季结算奖励：清档前按旧等级命中档位发奖，重复轮换不双发 ──
+
+    @Test
+    void 在线玩家轮换前按旧等级结算且不会重复发奖(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            env.settlementManager.pool().enabled = true;
+            UUID id = UUID.randomUUID();
+            SeasonData season = env.data.season(id);
+            season.level = 12;
+            env.data.rememberPlayerName(id, "结算在线");
+            env.configs.config().seasonId = "S2";
+
+            assertTrue(env.seasonReset.checkAndRoll(List.of(id)));
+            assertTrue(env.seasonReset.awaitIdle(8000));
+
+            // 夹具高档 10-30：STAR_COIN 30 + EXEMPT_CARD 1，两条都应在清档前交给奖励出口。
+            assertEquals(2, env.sink.countFor(id));
+            assertEquals(1, env.sink.countOf(RewardType.STAR_COIN));
+            assertEquals(1, env.sink.countOf(RewardType.EXEMPT_CARD));
+            assertEquals(1, season.level, "结算完成后赛季数据已清空");
+            assertTrue(season.seasonalTasks.isEmpty(), "赛季挑战进度随赛季清零");
+
+            // 幂等：玩家已属 S2，下一轮直接跳过，不会重复结算同一旧赛季。
+            env.sink.granted.clear();
+            env.seasonReset.checkAndRoll(List.of(id));
+            assertTrue(env.seasonReset.awaitIdle(8000));
+            assertEquals(0, env.sink.countFor(id), "已重置玩家不应被再次结算");
+        }
+    }
+
+    @Test
+    void 离线玩家轮换前同样按旧等级结算(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            env.settlementManager.pool().enabled = true;
+            UUID id = UUID.randomUUID();
+            SeasonData offline = new SeasonData(id.toString(), "S1");
+            offline.level = 9; // 夹具中档 5-9：STAR_COIN 15 + BATTLEPASS_XP 20
+            env.jsonStore.write(env.paths.seasonFile(id), offline);
+            env.configs.config().seasonId = "S2";
+
+            assertTrue(env.seasonReset.checkAndRoll(List.of()), "离线玩家也应走结算 + 重置链路");
+            assertTrue(env.seasonReset.awaitIdle(8000));
+
+            assertEquals(2, env.sink.countFor(id), "中档两条奖励都应发放");
+            assertEquals(1, env.sink.countOf(RewardType.STAR_COIN));
+            assertEquals(1, env.sink.countOf(RewardType.BATTLEPASS_XP));
+
+            SeasonData reloaded = env.jsonStore.read(env.paths.seasonFile(id), SeasonData.class, SeasonData::new);
+            assertEquals("S2", reloaded.seasonId, "离线存档已切换到新赛季");
+            assertEquals(1, reloaded.level, "等级随赛季重置");
+            assertTrue(reloaded.seasonalTasks.isEmpty());
+        }
+    }
+
+    @Test
+    void 结算开关关闭时轮换照常且不发结算奖励(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            // 夹具默认 enabled=false，这里不显式打开。
+            UUID id = UUID.randomUUID();
+            env.data.season(id).level = 12;
+            env.configs.config().seasonId = "S2";
+
+            env.seasonReset.checkAndRoll(List.of(id));
+            assertTrue(env.seasonReset.awaitIdle(8000));
+
+            assertEquals(0, env.sink.countFor(id), "开关关闭时只轮换、不发结算奖励");
+            assertEquals(1, env.data.season(id).level, "轮换重置不受开关影响");
+        }
     }
 }

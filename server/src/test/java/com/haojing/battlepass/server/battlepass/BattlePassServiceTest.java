@@ -363,6 +363,31 @@ class BattlePassServiceTest {
     }
 
     @Test
+    void 赛季挑战领取走独立经验来源且只发一次(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            UUID id = UUID.randomUUID();
+            SeasonData season = env.data.season(id);
+            TaskProgress progress = new TaskProgress("t_sea_1");
+            progress.setStatus(TaskStatus.COMPLETED);
+            season.seasonalTasks.put("t_sea_1", progress);
+
+            BattlePassService.ClaimResult first = env.battlePass.claimTaskReward(id, "t_sea_1");
+
+            assertEquals(BattlePassService.ClaimOutcome.OK, first.outcome());
+            assertEquals(100, first.xpResult().granted(), "夹具赛季挑战 100 经验");
+            assertEquals(2, first.starCoinGained(), "赛季挑战自带 2 京币");
+            assertEquals(TaskStatus.CLAIMED, season.seasonalTasks.get("t_sea_1").status());
+
+            // 100 经验：1→2 用 50，剩余 50 留在 2 级内；升级 +10 星币，合计 12。
+            assertEquals(2, first.xpResult().levelAfter());
+            assertEquals(12, env.data.global(id).starCoin, "升级星币 10 + 任务星币 2");
+
+            BattlePassService.ClaimResult second = env.battlePass.claimTaskReward(id, "t_sea_1");
+            assertEquals(BattlePassService.ClaimOutcome.ALREADY_CLAIMED, second.outcome(), "赛季挑战同样只能领取一次");
+        }
+    }
+
+    @Test
     void 豁免卡能把未完成的任务直接置为已领取(@TempDir Path tmp) throws IOException {
         try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
             UUID id = UUID.randomUUID();

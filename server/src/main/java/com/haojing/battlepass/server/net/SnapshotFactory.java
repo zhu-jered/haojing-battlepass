@@ -291,7 +291,7 @@ public final class SnapshotFactory {
             }
 
             TaskDefinition definition = pool.indexById().get(progress.taskId);
-            snapshot.group(group).add(line(definition, progress, false));
+            snapshot.group(group).add(line(definition, progress, false, false));
         }
 
         if (season.weeklyTasks != null) {
@@ -300,7 +300,17 @@ public final class SnapshotFactory {
                     continue;
                 }
 
-                snapshot.weekly.add(line(pool.indexById().get(progress.taskId), progress, true));
+                snapshot.weekly.add(line(pool.indexById().get(progress.taskId), progress, true, false));
+            }
+        }
+
+        if (season.seasonalTasks != null) {
+            for (TaskProgress progress : season.seasonalTasks.values()) {
+                if (progress == null) {
+                    continue;
+                }
+
+                snapshot.seasonal.add(line(pool.indexById().get(progress.taskId), progress, false, true));
             }
         }
 
@@ -533,6 +543,8 @@ public final class SnapshotFactory {
             snapshot.configFiles.add(paths.milestonesConfigFile().toAbsolutePath().toString());
             snapshot.configFiles.add(paths.titlesConfigFile().toAbsolutePath().toString());
             snapshot.configFiles.add(paths.capesConfigFile().toAbsolutePath().toString());
+            snapshot.configFiles.add(paths.checkinConfigFile().toAbsolutePath().toString());
+            snapshot.configFiles.add(paths.settlementConfigFile().toAbsolutePath().toString());
             snapshot.configFiles.add(paths.stateFile().toAbsolutePath().toString());
         }
 
@@ -599,7 +611,8 @@ public final class SnapshotFactory {
     }
 
     /** 把一条任务定义与进度合成快照行。 */
-    private ModSnapshots.TaskLine line(TaskDefinition definition, TaskProgress progress, boolean weekly) {
+    private ModSnapshots.TaskLine line(TaskDefinition definition, TaskProgress progress,
+                                       boolean weekly, boolean seasonal) {
         ModSnapshots.TaskLine line = new ModSnapshots.TaskLine();
 
         if (progress != null) {
@@ -617,6 +630,7 @@ public final class SnapshotFactory {
         }
 
         line.weekly = weekly;
+        line.seasonal = seasonal;
         return line;
     }
 

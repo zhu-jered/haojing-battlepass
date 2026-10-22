@@ -20,6 +20,8 @@ import com.haojing.battlepass.server.milestone.MilestoneService;
 import com.haojing.battlepass.server.redeem.RedeemCodeManager;
 import com.haojing.battlepass.server.redeem.RedeemCodeService;
 import com.haojing.battlepass.server.reward.RewardSink;
+import com.haojing.battlepass.server.settlement.SettlementManager;
+import com.haojing.battlepass.server.settlement.SettlementService;
 import com.haojing.battlepass.server.season.SeasonResetService;
 import com.haojing.battlepass.server.shop.ShopManager;
 import com.haojing.battlepass.server.storage.JsonStore;
@@ -118,6 +120,8 @@ public final class ServerTestEnv implements AutoCloseable {
     public final RedeemCodeService redeemCodeService;
     public final CheckinManager checkinManager;
     public final CheckinService checkinService;
+    public final SettlementManager settlementManager;
+    public final SettlementService settlementService;
     public final RandomEventManager randomEventManager;
     public final RandomEventService randomEventService;
     public final MilestoneManager milestoneManager;
@@ -206,6 +210,14 @@ public final class ServerTestEnv implements AutoCloseable {
         checkinService = new CheckinService(data, checkinManager, configs);
         checkinService.setRewardSink(sink);
 
+        // 赛季结算：夹具默认关闭，避免改变既有"星币随赛季保留"等口径；
+        // 需要验证结算发放的用例在体内把 manager.pool().enabled 置 true 即可。
+        settlementManager = new SettlementManager(paths, jsonStore);
+        settlementManager.load();
+        settlementService = new SettlementService(settlementManager);
+        settlementService.setRewardSink(sink);
+        seasonReset.setSettlementService(settlementService);
+
         randomEventService = new RandomEventService(randomEventManager);
         randomEventService.setRewardSink(sink);
         randomEventService.setAnnouncer((definition, started, participants) ->
@@ -249,6 +261,9 @@ public final class ServerTestEnv implements AutoCloseable {
                   },
                   "weekly": [
                     { "id": "t_weekly_1", "action": "FISH", "name": "钓鱼", "desc": "", "target": 5, "xp": 200, "starCoin": 5 }
+                  ],
+                  "seasonal": [
+                    { "id": "t_sea_1", "action": "BREAK_BLOCK", "name": "赛季破坏", "desc": "赛季内累计破坏", "target": 10, "xp": 100, "starCoin": 2 }
                   ]
                 }
                 """);
@@ -358,6 +373,22 @@ public final class ServerTestEnv implements AutoCloseable {
                     { "id": "m_percapita", "name": "测试人均", "metric": "MOBS_KILLED", "scope": "PER_CAPITA",
                       "threshold": 2, "recipients": "PARTICIPANTS",
                       "rewards": [ { "type": "STAR_COIN", "amount": 3 } ] }
+                  ]
+                }
+                """);
+
+        // 赛季结算默认关闭：保持既有"星币随赛季保留"断言口径，结算用例在体内显式开启。
+        Files.writeString(paths.settlementConfigFile(), """
+                {
+                  "schemaVersion": 1,
+                  "enabled": false,
+                  "tiers": [
+                    { "minLevel": 1, "maxLevel": 4,
+                      "rewards": [ { "type": "STAR_COIN", "amount": 5 } ] },
+                    { "minLevel": 5, "maxLevel": 9,
+                      "rewards": [ { "type": "STAR_COIN", "amount": 15 }, { "type": "BATTLEPASS_XP", "amount": 20 } ] },
+                    { "minLevel": 10, "maxLevel": 30,
+                      "rewards": [ { "type": "STAR_COIN", "amount": 30 }, { "type": "EXEMPT_CARD", "amount": 1 } ] }
                   ]
                 }
                 """);

@@ -80,6 +80,7 @@ class HandshakeValidatorTest {
         assertEquals("", player.seasonId);
         assertEquals(1, player.level);
         assertTrue(tasks.weekly.isEmpty());
+        assertTrue(tasks.seasonal.isEmpty());
         assertTrue(tasks.group("explore").isEmpty());
         assertTrue(tasks.group("weekly").isEmpty());
         assertTrue(tasks.group("不存在的组").isEmpty());

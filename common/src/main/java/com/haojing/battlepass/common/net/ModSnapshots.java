@@ -123,6 +123,8 @@ public final class ModSnapshots {
         public int xp = 0;
         public int starCoin = 0;
         public boolean weekly = false;
+        /** 是否为贯穿整赛季的赛季挑战（与每日、每周并列的第三类任务）。 */
+        public boolean seasonal = false;
     }
 
     /**
@@ -181,13 +183,15 @@ public final class ModSnapshots {
         public String levelAxisReward = "§6";
     }
 
-    /** 任务快照：三组每日 + 每周列表。 */
+    /** 任务快照：三组每日 + 每周列表 + 赛季挑战列表。 */
     public static class Tasks {
 
         public List<TaskLine> explore = new ArrayList<>();
         public List<TaskLine> build = new ArrayList<>();
         public List<TaskLine> general = new ArrayList<>();
         public List<TaskLine> weekly = new ArrayList<>();
+        /** 贯穿整赛季的长线挑战（不随日/周刷新，独立进度与独立奖励）。 */
+        public List<TaskLine> seasonal = new ArrayList<>();
 
         /** 玩家本日已选定的每日任务组；空串表示尚未选择（其它组显示"选择本组"按钮）。 */
         public String chosenGroup = "";

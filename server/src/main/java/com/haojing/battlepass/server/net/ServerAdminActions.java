@@ -250,6 +250,13 @@ public final class ServerAdminActions {
             checkinMgr.reload();
         }
 
+        // 赛季结算档位表同样走文件编辑，保存后立即重载。
+        com.haojing.battlepass.server.settlement.SettlementManager settlementMgr =
+                com.haojing.battlepass.server.HaoJingBattlePassServer.settlement();
+        if (settlementMgr != null) {
+            settlementMgr.reload();
+        }
+
         if (syncService != null) {
             syncService.markAllPlayersDirty(server);
             syncService.setPopulation(server == null ? 0 : server.getPlayerManager().getPlayerList().size(),
@@ -282,7 +289,8 @@ public final class ServerAdminActions {
                 + " 彩蛋数：" + (global.collection == null ? 0 : global.collection.size()));
         lines.add("今日已获经验：" + season.dailyXpEarned + " 刷新任务已用：" + season.dailyRerollUsed);
         lines.add("每日任务数：" + (season.dailyTasks == null ? 0 : season.dailyTasks.size())
-                + " 每周任务数：" + (season.weeklyTasks == null ? 0 : season.weeklyTasks.size()));
+                + " 每周任务数：" + (season.weeklyTasks == null ? 0 : season.weeklyTasks.size())
+                + " 赛季挑战数：" + (season.seasonalTasks == null ? 0 : season.seasonalTasks.size()));
         lines.add("上次每日刷新：" + season.lastDailyRefreshDate);
 
         String text = String.join("\n", lines);
@@ -770,6 +778,7 @@ public final class ServerAdminActions {
         files.add(paths.titlesConfigFile());
         files.add(paths.capesConfigFile());
         files.add(paths.checkinConfigFile());
+        files.add(paths.settlementConfigFile());
         files.add(paths.stateFile());
         return files;
     }

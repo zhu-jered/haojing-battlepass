@@ -102,6 +102,8 @@ public class HaoJingBattlePassServer implements ModInitializer {
     private static volatile com.haojing.battlepass.server.ranking.RankingService rankingService;
     private static volatile com.haojing.battlepass.server.checkin.CheckinManager checkinManager;
     private static volatile com.haojing.battlepass.server.checkin.CheckinService checkinService;
+    private static volatile com.haojing.battlepass.server.settlement.SettlementManager settlementManager;
+    private static volatile com.haojing.battlepass.server.settlement.SettlementService settlementService;
 
     /** 随机事件用的随机源（集中一个，避免每次 new 出重复序列）。 */
     private static final Random RANDOM = new Random();
@@ -196,6 +198,11 @@ public class HaoJingBattlePassServer implements ModInitializer {
     /** @return 签到配置管理器；未初始化时为 {@code null}。管理面板保存 checkin.json 后即时重载用。 */
     public static com.haojing.battlepass.server.checkin.CheckinManager checkin() {
         return checkinManager;
+    }
+
+    /** @return 赛季结算配置管理器；未初始化时为 {@code null}。管理面板保存 settlement.json 后即时重载用。 */
+    public static com.haojing.battlepass.server.settlement.SettlementManager settlement() {
+        return settlementManager;
     }
 
     /** @return 网络层；未初始化时为 {@code null}。用于把更新后的披风贴图推给在线客户端。 */
@@ -349,6 +356,12 @@ public class HaoJingBattlePassServer implements ModInitializer {
                 checkinMgr.reloadIfChanged();
             }
 
+            com.haojing.battlepass.server.settlement.SettlementManager settlementMgr = settlementManager;
+
+            if (settlementMgr != null) {
+                settlementMgr.reloadIfChanged();
+            }
+
             RandomEventManager events = randomEventManager;
 
             if (events != null) {
@@ -409,7 +422,7 @@ public class HaoJingBattlePassServer implements ModInitializer {
             }
         }
 
-        // 自动领取已完成任务的奖励（每日选中组 + 每周全部）
+        // 自动领取已完成任务的奖励（每日选中组 + 每周全部 + 赛季挑战全部）
         try {
             BattlePassService bp = battlePassService;
             if (bp != null && dataManager != null) {
@@ -430,6 +443,16 @@ public class HaoJingBattlePassServer implements ModInitializer {
                     }
                     if (season.weeklyTasks != null) {
                         for (var entry : season.weeklyTasks.entrySet()) {
+                            var progress = entry.getValue();
+                            if (progress != null && progress.status() == com.haojing.battlepass.common.data.TaskStatus.COMPLETED) {
+                                var res = bp.claimTaskReward(uuid, progress.taskId);
+                                if (res.outcome() == BattlePassService.ClaimOutcome.OK) anyClaimed = true;
+                            }
+                        }
+                    }
+                    // 赛季挑战与每周同口径：完成即由服务端维护循环自动领取，客户端页签只读。
+                    if (season.seasonalTasks != null) {
+                        for (var entry : season.seasonalTasks.entrySet()) {
                             var progress = entry.getValue();
                             if (progress != null && progress.status() == com.haojing.battlepass.common.data.TaskStatus.COMPLETED) {
                                 var res = bp.claimTaskReward(uuid, progress.taskId);
@@ -597,6 +620,12 @@ public class HaoJingBattlePassServer implements ModInitializer {
             checkin.load();
             checkinManager = checkin;
 
+            // 赛季结算档位配置：轮换时按旧赛季最终等级一次性发奖，热重载口径与签到一致。
+            com.haojing.battlepass.server.settlement.SettlementManager settlement =
+                    new com.haojing.battlepass.server.settlement.SettlementManager(paths, jsonStore);
+            settlement.load();
+            settlementManager = settlement;
+
             RandomEventManager events = new RandomEventManager(paths, jsonStore);
             events.load();
             randomEventManager = events;
@@ -690,6 +719,12 @@ public class HaoJingBattlePassServer implements ModInitializer {
             checkinServiceInstance.setRewardSink(sink);
             checkinService = checkinServiceInstance;
 
+            // 赛季结算：轮换时按旧赛季最终等级档位一次性发奖，奖励出口与其它业务一致。
+            com.haojing.battlepass.server.settlement.SettlementService settlementServiceInstance =
+                    new com.haojing.battlepass.server.settlement.SettlementService(settlement);
+            settlementServiceInstance.setRewardSink(sink);
+            settlementService = settlementServiceInstance;
+
             // 随机事件：公告与效果由同一个回调驱动，避免"公告发了但效果忘了放"。
             // 第四个参数提供事件配置（刷怪亮度/半径等策略），热重载后下一场事件立即生效。
             RandomEventEffects effects = new RandomEventEffects(sink, () -> server, configs::config, events::config);
@@ -722,6 +757,9 @@ public class HaoJingBattlePassServer implements ModInitializer {
             // 赛季日程提醒（临近结束/已到期）：正文由服务端拼好直接播，与每日重启倒计时风格一致。
             seasonResetService.setScheduleAnnouncer(message -> server.getPlayerManager().broadcast(
                     Text.literal(message), false));
+
+            // 把结算奖励服务挂进轮换链路：清档前按旧等级发奖；未注入时 SeasonResetService 自身兼容。
+            seasonResetService.setSettlementService(settlementServiceInstance);
 
             // 事件监听最后注册：确保上面所有依赖都已就绪，事件一到就能正常判定。
             // 任务事件同时把行为上报给里程碑与随机事件（§10 的统计口径与参与判定）。
@@ -827,6 +865,8 @@ public class HaoJingBattlePassServer implements ModInitializer {
         rankingService = null;
         checkinManager = null;
         checkinService = null;
+        settlementManager = null;
+        settlementService = null;
 
         if (assignment != null) {
             // 先停刷新线程，再落盘玩家数据，避免关服过程中还有线程在改数据。

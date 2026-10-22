@@ -659,5 +659,89 @@
         ]
       }
     }
+  ],
+  "seasonal": [
+    {
+      "id": "sea_001",
+      "action": "BREAK_BLOCK",
+      "name": "赛季开拓者",
+      "desc": "本赛季累计破坏 2048 个方块",
+      "target": 2048,
+      "xp": 400,
+      "starCoin": 5
+    },
+    {
+      "id": "sea_002",
+      "action": "PLACE_BLOCK",
+      "name": "赛季建筑师",
+      "desc": "本赛季累计放置 512 个方块",
+      "target": 512,
+      "xp": 300,
+      "starCoin": 3
+    },
+    {
+      "id": "sea_003",
+      "action": "KILL_ENTITY",
+      "name": "赛季猎手",
+      "desc": "本赛季累计击杀 120 只敌对生物",
+      "target": 120,
+      "xp": 350,
+      "starCoin": 5,
+      "filter": {
+        "type": "ENTITY_ID",
+        "values": [
+          "minecraft:zombie",
+          "minecraft:skeleton",
+          "minecraft:creeper",
+          "minecraft:spider",
+          "minecraft:witch",
+          "minecraft:slime",
+          "minecraft:silverfish",
+          "minecraft:drowned",
+          "minecraft:blaze",
+          "minecraft:magma_cube",
+          "minecraft:wither_skeleton",
+          "minecraft:ghast",
+          "minecraft:endermite",
+          "minecraft:zombified_piglin",
+          "minecraft:piglin",
+          "minecraft:piglin_brute"
+        ]
+      }
+    },
+    {
+      "id": "sea_004",
+      "action": "FISH",
+      "name": "赛季渔夫",
+      "desc": "本赛季累计钓鱼成功 60 次",
+      "target": 60,
+      "xp": 250,
+      "starCoin": 3
+    },
+    {
+      "id": "sea_005",
+      "action": "TRADE",
+      "name": "赛季商人",
+      "desc": "本赛季累计与村民交易 40 次",
+      "target": 40,
+      "xp": 250,
+      "starCoin": 3
+    },
+    {
+      "id": "sea_006",
+      "action": "ENTER_DIMENSION",
+      "name": "赛季远征者",
+      "desc": "本赛季分别进入下界与末地",
+      "target": 2,
+      "xp": 300,
+      "starCoin": 5,
+      "filter": {
+        "type": "DIMENSION",
+        "values": [
+          "minecraft:the_nether",
+          "minecraft:the_end"
+        ]
+      }
+    }
   ]
 }

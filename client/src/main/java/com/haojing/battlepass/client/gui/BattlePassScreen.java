@@ -25,7 +25,7 @@ import java.util.List;
  * 用途：玩家战令界面（需求文档 §8：{@code /battlepass} 或快捷键 {@code B} 打开，
  * 独立中文窗口，支持滚动分页）。
  *
- * <p>六个分页与 §8 一一对应：首页 / 每日任务 / 每周挑战 / 战令商店 / 称号库 / 收藏册。
+ * <p>八个分页：首页 / 每日任务 / 每周挑战 / 战令商店 / 称号库 / 收藏册 / 赛季排行 / 赛季挑战。
  *
  * <p>本版本新增的纯客户端渲染特性（不改动任何服务端逻辑与存档）：
  * <ul>
@@ -42,7 +42,7 @@ import java.util.List;
 @Environment(EnvType.CLIENT)
 public class BattlePassScreen extends Screen {
 
-    /** 七个分页的翻译键（顺序即页签顺序）。 */
+    /** 八个分页的翻译键（顺序即页签顺序）。 */
     private static final String[] TAB_KEYS = {
             "haojing_battlepass.gui.tab.home",
             "haojing_battlepass.gui.tab.daily",
@@ -50,7 +50,8 @@ public class BattlePassScreen extends Screen {
             "haojing_battlepass.gui.tab.shop",
             "haojing_battlepass.gui.tab.titles",
             "haojing_battlepass.gui.tab.collection",
-            "haojing_battlepass.gui.tab.ranking"
+            "haojing_battlepass.gui.tab.ranking",
+            "haojing_battlepass.gui.tab.seasonal"
     };
 
     private int tab;
@@ -172,6 +173,7 @@ public class BattlePassScreen extends Screen {
                     case 4 -> renderTitlesCustom(context, mouseX, mouseY);
                     case 5 -> renderCollectionCustom(context);
                     case 6 -> renderRankingCustom(context);
+                    case 7 -> renderSeasonalCustom(context, mouseX, mouseY);
                     default -> renderRowList(context);
                 }
             }
@@ -402,6 +404,9 @@ public class BattlePassScreen extends Screen {
                 break;
             case 6:
                 // 排行榜是只读卡片列表，不走 Row 行模型。
+                break;
+            case 7:
+                // 赛季挑战同样是只读卡片列表，完成后由服务端自动发奖，页面上不设操作按钮。
                 break;
             default:
                 buildHome(built);
@@ -870,6 +875,67 @@ public class BattlePassScreen extends Screen {
             drawProgressBar(context, px + 10, ly + 24, pw - 20, 5, line.progress, line.target);
 
             // 悬停 tooltip
+            if (mouseX >= px + 6 && mouseX <= px + pw - 6 && mouseY >= ly && mouseY <= ly + 36) {
+                Text tip = Text.translatableWithFallback("haojing_battlepass.task." + line.id + ".desc",
+                        line.desc == null ? "" : line.desc);
+                context.drawTooltip(this.textRenderer, List.of(tip), mouseX, mouseY);
+            }
+
+            ly += 48;
+        }
+    }
+
+    /**
+     * 赛季挑战页签：只读卡片列表，与每周挑战同范式。
+     *
+     * <p>为什么这里不设"领取"按钮：赛季挑战在赛季开始时一次性全量分配，
+     * 完成后由服务端维护循环自动发奖（与每周任务一致），客户端只负责展示进度与说明，
+     * 避免玩家手动重复领取带来的状态分歧。
+     */
+    private void renderSeasonalCustom(DrawContext context, int mouseX, int mouseY) {
+        ModSnapshots.Tasks tasks = ClientNetworking.state().tasks();
+        int px = layout.panelX() + 6;
+        int pw = layout.panelWidth() - 12;
+        int y = layout.contentTop();
+        int dimColor = 0xFF888888;
+        List<ModSnapshots.TaskLine> lines = tasks.seasonal;
+
+        int cardH = 20 + 14 + lines.size() * 48;
+        drawCard(context, px, y, pw, cardH, CARD_BORDER_GOLD);
+        context.drawTextWithShadow(this.textRenderer,
+                Text.translatable("haojing_battlepass.gui.seasonal.title"), px + 6, y + 6, 0xFFFFFFFF);
+        context.drawTextWithShadow(this.textRenderer,
+                Text.translatable("haojing_battlepass.gui.seasonal.hint"), px + 6, y + 20, dimColor);
+
+        int ly = y + 38;
+
+        if (lines.isEmpty()) {
+            context.drawTextWithShadow(this.textRenderer,
+                    Text.translatable("haojing_battlepass.gui.seasonal.empty"), px + 10, ly, dimColor);
+            return;
+        }
+
+        for (ModSnapshots.TaskLine line : lines) {
+            String name = Text.translatableWithFallback("haojing_battlepass.task." + line.id, line.name).getString();
+            boolean done = line.progress >= line.target;
+            String statusKey = switch (line.status) {
+                case "CLAIMED" -> "haojing_battlepass.task.status.CLAIMED";
+                case "COMPLETED" -> "haojing_battlepass.task.status.COMPLETED";
+                case "IN_PROGRESS" -> "haojing_battlepass.task.status.IN_PROGRESS";
+                default -> "haojing_battlepass.task.status.NOT_ACTIVE";
+            };
+            int statusColor = done ? 0xFF55FF55 : (line.progress > 0 ? 0xFFFFCC44 : dimColor);
+
+            context.drawTextWithShadow(this.textRenderer, name, px + 10, ly, 0xFFFFFFFF);
+            Text statusText = Text.translatable(statusKey);
+            int sw = this.textRenderer.getWidth(statusText);
+            context.drawTextWithShadow(this.textRenderer, statusText, px + pw - sw - 10, ly, statusColor);
+
+            String progressStr = line.progress + "/" + line.target;
+            context.drawTextWithShadow(this.textRenderer, progressStr, px + 10, ly + 12, 0xFFCCCCCC);
+            drawProgressBar(context, px + 10, ly + 24, pw - 20, 5, line.progress, line.target);
+
+            // 悬停显示任务说明，命中区与每周挑战口径一致。
             if (mouseX >= px + 6 && mouseX <= px + pw - 6 && mouseY >= ly && mouseY <= ly + 36) {
                 Text tip = Text.translatableWithFallback("haojing_battlepass.task." + line.id + ".desc",
                         line.desc == null ? "" : line.desc);

@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 用途：覆盖需求文档 §5.1（每组池规模 12）、§5.4（每周数量默认 3）、§5.7（过滤器）对任务池的要求，
  * 并保证"非法配置只丢弃并告警，不拒绝加载"。
  *
- * <p>其中「内置默认任务池自身完全合法」这条是给我自己写的 42 条任务兜底：
+ * <p>其中「内置默认任务池自身完全合法」这条是给我自己写的默认任务兜底：
  * 只要有一条 action 拼错、target 写成 0、或过滤器结构不对，这条用例就会失败。
  * 否则那些错误要等到玩家实际做任务时才会以"这个任务永远不涨进度"的形式暴露出来。
  */
@@ -69,6 +69,7 @@ class TaskPoolTest {
         }
 
         assertEquals(6, pool.allWeekly().size(), "每周挑战池");
+        assertEquals(6, pool.allSeasonal().size(), "赛季挑战池");
         assertEquals(3, pool.weeklyCount, "需求文档 §5.4：每周挑战数量默认 3 个");
     }
 
@@ -79,8 +80,9 @@ class TaskPoolTest {
 
         List<TaskDefinition> all = new ArrayList<>(pool.allDaily());
         all.addAll(pool.allWeekly());
+        all.addAll(pool.allSeasonal());
 
-        assertEquals(44, all.size(), "默认池应为 14+12+12 每日 + 6 每周");
+        assertEquals(50, all.size(), "默认池应为 14+12+12 每日 + 6 每周 + 6 赛季挑战");
 
         for (TaskDefinition definition : all) {
             assertNotNull(definition.actionOrNull(),
