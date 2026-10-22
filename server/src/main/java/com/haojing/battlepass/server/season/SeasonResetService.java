@@ -17,7 +17,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -30,17 +32,26 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 用途：赛季结束时的归档与重置（需求文档 §4：「赛季结束 → 全服结算公告 →
  * 归档 data/history/season_&lt;id&gt;.json → 重置等级/经验/任务/分支，保留星币与收藏册」）。
  *
+ * <p>赛季滚动有两条触发路径，最终都收敛到 {@link #checkAndRoll}：
+ * <ul>
+ *   <li><b>手动推进</b>：管理员把 season.json 的 seasonId 改成新值，配置 ID 与玩家存档
+ *       seasonId 不一致即归档重置；</li>
+ *   <li><b>自动轮换</b>：{@code autoRollover=true} 且日程到期（自然月每月 1 号 / 固定时长
+ *       到期日）时，{@link #checkAndAutoRollover} 先把配置赛季 ID 递增、开始日补回本月 1 号
+ *       并落盘，再交给 {@link #checkAndRoll} 完成归档重置。</li>
+ * </ul>
+ *
  * <p>为什么判断依据是「配置里的 seasonId 与玩家存档里的 seasonId 不一致」：
- * 需求文档没有规定"赛季何时结束"的判据（只给了 durationDays 这个时长）。
  * 玩家存档里本来就记录了 seasonId（阶段 2 就已经写在 {@link SeasonData} 里，
- * 注释也点明"阶段 5 处理"），把它当作唯一判据既不需要新的时间基准，
- * 也天然幂等：重置过的玩家 seasonId 已经是新的，再跑一次不会重复归档。
- * 管理员推进赛季的动作就是把 season.json 里的 seasonId 改成 S2。
+ * 注释也点明"阶段 5 处理"），把它当作判据天然幂等：重置过的玩家 seasonId 已经是新的，
+ * 再跑一次不会重复归档。
  *
  * <p>为什么"在线玩家在主线程改内存、离线玩家交给后台线程改文件"：
  * 与每日刷新（{@code TaskAssignmentService}）完全同一个理由 ——
@@ -91,6 +102,9 @@ public final class SeasonResetService implements AutoCloseable {
 
     /** 滚动防重入：后台归档还没跑完时，不要因为主线程下一轮轮询又启动一次。 */
     private final AtomicBoolean rolling = new AtomicBoolean(false);
+
+    /** 赛季 ID 递增规则：匹配 S1 / s2 这类纯 S+数字 写法（非匹配时追加月份后缀兜底）。 */
+    private static final Pattern SEASON_ID_PATTERN = Pattern.compile("^[Ss](\\d+)$");
 
     /** 赛季日程提醒出口；未注入（setter）时提醒只记日志、不播报。 */
     private volatile ScheduleAnnouncer scheduleAnnouncer;
@@ -222,6 +236,113 @@ public final class SeasonResetService implements AutoCloseable {
     }
 
     /**
+     * 检查是否到期且开启了自动轮换；满足条件则推进赛季 ID、更新开始日，随后复用 {@link #checkAndRoll}
+     * 完成归档与重置。由维护循环在 {@link #checkAndRoll} 之前调用。
+     *
+     * <p>为什么"先改配置、再走既有滚动链路"：归档/重置/公告/离线玩家处理已经在 {@link #checkAndRoll}
+     * 里写过一遍并被单测覆盖，自动轮换不需要复制一套 —— 只要把配置里的 seasonId 推进到新值，
+     * 原有"配置 seasonId 与玩家存档不一致即归档重置"的判据自然成立。
+     *
+     * <p>为什么写盘失败必须中止并回滚：赛季滚动会清空全体玩家的等级/经验/任务，是不可逆动作。
+     * 若配置没写进磁盘就清了档，重启后配置回到旧赛季，玩家存档已是新赛季，下一轮启动会被当成
+     * 旧赛季再归档一次（二次清档）。因此先改内存、{@code saveAndReport()} 确认落盘成功后才继续；
+     * 失败则把内存赛季 ID 与开始日原样改回，本轮作废，下一轮维护检查再重试。
+     *
+     * @param onlinePlayerIds 当前在线玩家
+     * @return 本次是否发起了自动轮换
+     */
+    public boolean checkAndAutoRollover(List<UUID> onlinePlayerIds) {
+        SeasonConfig config = configManager.config();
+        ServerState state = stateManager.state();
+
+        if (config == null || state == null) {
+            return false;
+        }
+
+        // 开关关闭、没配开始日期、尚未到期：都不属于自动轮换场景，直接交给后续提醒/手动滚动链路。
+        if (!config.autoRollover
+                || config.seasonStartDate == null || config.seasonStartDate.isBlank()) {
+            return false;
+        }
+
+        ZonedDateTime now = clock.get();
+
+        if (!SeasonSchedule.isRolloverTime(now, config)) {
+            return false;
+        }
+
+        // 上一轮归档线程还没跑完：本轮不抢，等它排空后下一轮再检查，避免"配置已改、玩家未重置"的撕裂。
+        if (rolling.get()) {
+            return false;
+        }
+
+        String oldId = config.seasonId;
+        String newId = nextSeasonId(oldId, now);
+
+        // 备份原值：落盘失败时回滚内存（与二次清档风险对应）。
+        String backupId = oldId;
+        String backupStart = config.seasonStartDate;
+
+        // 新赛季开始日按周期口径分别推算：
+        // 自然月补回本月 1 号（宕机几天后才开机也不截短当月）；固定时长则沿旧开始日向后推
+        // durationDays 天，保持 30 天一轮的节奏连续，而不是被拉到日历月初。
+        LocalDate newStart;
+
+        if (SeasonSchedule.isNatural(config)) {
+            newStart = SeasonSchedule.nextNaturalStart(now.toLocalDate());
+        } else {
+            LocalDate oldStart = LocalDate.parse(backupStart.trim());
+            newStart = oldStart.plusDays(Math.max(1, config.durationDays));
+        }
+
+        String newStartText = newStart.toString();
+
+        config.seasonId = newId;
+        config.seasonStartDate = newStartText;
+
+        if (!configManager.saveAndReport()) {
+            config.seasonId = backupId;
+            config.seasonStartDate = backupStart;
+            LOGGER.error("{} 自动轮换写入配置失败，本轮作废（下一轮将重试）：赛季={}",
+                    ModConstants.LOG_PREFIX, oldId);
+            return false;
+        }
+
+        LOGGER.info("{} 赛季到期自动轮换：{} → {}，新赛季开始日 {}（周期模式={}）",
+                ModConstants.LOG_PREFIX, oldId, newId, newStartText, config.cycleMode);
+
+        // 复用既有归档/重置/公告/离线处理链路；返回本次是否启动了滚动流程。
+        return checkAndRoll(onlinePlayerIds);
+    }
+
+    /**
+     * 推算下一个赛季 ID（纯函数，便于单测钉住规则）。
+     *
+     * <p>规则：现有 ID 为 "S + 数字"（大小写不敏感，如 S1、s3）时数字 +1 得到 S2、S4；
+     * 不是这种格式时保留原 ID 并追加 {@code "-yyyy-MM"} 月份后缀 —— 两个不同赛季共用同一个 ID
+     * 会让归档文件 {@code season_<id>.json} 互相覆盖，兜底后缀避免归档串档。
+     * 管理员建议赛季 ID 统一使用 S1、S2、S3 格式。
+     *
+     * @param currentId 当前赛季 ID
+     * @param now       当前时刻（兜底后缀取月份用）
+     * @return 下一个赛季 ID
+     */
+    static String nextSeasonId(String currentId, ZonedDateTime now) {
+        if (currentId == null || currentId.isBlank()) {
+            return "S2";
+        }
+
+        Matcher matcher = SEASON_ID_PATTERN.matcher(currentId.trim());
+
+        if (matcher.matches()) {
+            int number = Integer.parseInt(matcher.group(1));
+            return "S" + (number + 1);
+        }
+
+        return currentId.trim() + "-" + now.format(DateTimeFormatter.ofPattern("yyyy-MM"));
+    }
+
+    /**
      * 注入赛季日程提醒的公告出口。为什么不放进构造函数：装配顺序是
      * "先造 SeasonResetService 再造播报实现"，setter 可以把依赖顺序拉平。
      *
@@ -316,14 +437,23 @@ public final class SeasonResetService implements AutoCloseable {
         return true;
     }
 
-    /** 已到期的提醒。 */
+    /** 已到期的提醒。自动轮换模式与手动模式的文案口径不同：前者等系统自己切，后者等管理员推进。 */
     private void announceDue(SeasonConfig config, ZonedDateTime now, int overdueDays) {
-        String message = "§e[镐京战令] §c本赛季（" + config.seasonId + " " + label(config.themeName)
-                + "）已到期，等待管理员开启新赛季" + (overdueDays < -1 ? "（已超期 " + (-overdueDays) + " 天）" : "")
-                + "。如已开新赛季请同步更新 season.json 的 seasonStartDate。";
+        String overdue = overdueDays < -1 ? "（已超期 " + (-overdueDays) + " 天）" : "";
+        String message;
 
-        LOGGER.error("{} 赛季已到期：赛季={} 主题={} 超期 {} 天（lastSeasonId={}，请推进 seasonId）",
+        if (config.autoRollover) {
+            message = "§e[镐京战令] §c本赛季（" + config.seasonId + " " + label(config.themeName)
+                    + "）已到期，系统将在下一轮检查时自动开启新赛季" + overdue + "。";
+        } else {
+            message = "§e[镐京战令] §c本赛季（" + config.seasonId + " " + label(config.themeName)
+                    + "）已到期，等待管理员开启新赛季" + overdue
+                    + "。如已开新赛季请同步更新 season.json 的 seasonStartDate。";
+        }
+
+        LOGGER.error("{} 赛季已到期：赛季={} 主题={} 超期 {} 天 自动轮换={}（lastSeasonId={}）",
                 ModConstants.LOG_PREFIX, config.seasonId, config.themeName, -overdueDays,
+                config.autoRollover,
                 stateManager.state() == null ? "" : stateManager.state().lastSeasonId);
         scheduleAnnouncer.announce(message);
     }

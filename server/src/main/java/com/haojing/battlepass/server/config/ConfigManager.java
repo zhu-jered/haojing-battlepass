@@ -1,6 +1,7 @@
 package com.haojing.battlepass.server.config;
 
 import com.haojing.battlepass.common.ModConstants;
+import com.haojing.battlepass.server.season.SeasonSchedule;
 import com.haojing.battlepass.server.storage.JsonStore;
 import com.haojing.battlepass.server.storage.StoragePaths;
 import com.haojing.battlepass.server.time.TimeUtil;
@@ -169,6 +170,35 @@ public final class ConfigManager {
     }
 
     /**
+     * 把当前内存配置写回磁盘并报告成败。
+     *
+     * <p>为什么单独提供这个方法：普通 GUI 保存时写盘失败只记日志、内存配置继续生效即可；
+     * 而赛季自动轮换是"先改内存赛季 ID、再归档清档"的不可逆动作 —— 若配置没写进磁盘，
+     * 重启后配置会回到旧赛季，玩家存档却已是新赛季，下一轮启动会被当成旧赛季再归档一次
+     * （二次清档）。因此调用方必须在写盘成功后才允许继续滚动，失败时回滚内存改动。
+     *
+     * @return true=写盘成功；false=写盘失败（调用方应回滚已做的内存改动）
+     */
+    public boolean saveAndReport() {
+        SeasonConfig current = config;
+
+        if (current == null) {
+            return false;
+        }
+
+        validate(current);
+
+        try {
+            jsonStore.write(paths.seasonConfigFile(), current);
+            return true;
+        } catch (IOException | RuntimeException e) {
+            LOGGER.error("{} 写入赛季配置失败（自动轮换已中止，内存改动将回滚）：{}",
+                    ModConstants.LOG_PREFIX, paths.seasonConfigFile(), e);
+            return false;
+        }
+    }
+
+    /**
      * @param uuid 玩家 UUID
      * @return 该玩家是否在长夜管理员白名单中（需求文档 §7：白名单玩家不受长夜全部效果影响）
      */
@@ -213,6 +243,18 @@ public final class ConfigManager {
         if (value.durationDays < 1) {
             LOGGER.warn("{} durationDays={} 非法，已回退为 30", ModConstants.LOG_PREFIX, value.durationDays);
             value.durationDays = 30;
+        }
+
+        // 周期模式只认 natural / fixed 两个取值；写错一律退回 fixed（历史兼容口径），
+        // 宁可按固定 30 天算，也不要让一个拼错的模式名把自然月边界算错。
+        if (value.cycleMode == null
+                || (!SeasonSchedule.CYCLE_NATURAL.equalsIgnoreCase(value.cycleMode.trim())
+                    && !SeasonSchedule.CYCLE_FIXED.equalsIgnoreCase(value.cycleMode.trim()))) {
+            LOGGER.warn("{} cycleMode={} 非法（应为 natural 或 fixed），已回退为 fixed",
+                    ModConstants.LOG_PREFIX, value.cycleMode);
+            value.cycleMode = SeasonSchedule.CYCLE_FIXED;
+        } else {
+            value.cycleMode = value.cycleMode.trim().toLowerCase(java.util.Locale.ROOT);
         }
 
         // 赛季开始日期：空串 = 不启用日程检查；非空必须是 yyyy-MM-dd，否则清空并告警（宁可退回"无提醒"也不要给客户端算出一个错误倒计时）。

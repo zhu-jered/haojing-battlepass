@@ -457,6 +457,8 @@ public class HaoJingBattlePassServer implements ModInitializer {
 
         if (reset != null) {
             try {
+                // 到期且开启自动轮换：先推进赛季 ID 并归档重置；随后 checkAndRoll 走快速路径兜底。
+                reset.checkAndAutoRollover(online);
                 reset.checkAndRoll(online);
 
                 // 赛季日程提醒（配了 seasonStartDate 才有）：每天至多一次，跨重启不重复。

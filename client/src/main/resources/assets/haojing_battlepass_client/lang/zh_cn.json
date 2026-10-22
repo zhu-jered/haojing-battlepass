@@ -184,6 +184,8 @@
   "haojing_battlepass.admin.line.season": "赛季：%s（%s）",
   "haojing_battlepass.admin.line.season_enabled": "赛季开关：%s",
   "haojing_battlepass.admin.line.duration": "赛季时长：%s 天",
+  "haojing_battlepass.admin.line.auto_rollover_on": "赛季自动轮换：开启 · %s（到期自动归档并开启新赛季）",
+  "haojing_battlepass.admin.line.auto_rollover_off": "赛季自动轮换：关闭（到期提醒后由管理员手动推进 seasonId）",
   "haojing_battlepass.admin.line.branch_unlock": "分支解锁等级：%s",
   "haojing_battlepass.admin.line.daily_xp_cap": "每日经验上限：%s（0 = 不限）",
   "haojing_battlepass.admin.line.daily_refresh": "每日刷新时刻：%s",

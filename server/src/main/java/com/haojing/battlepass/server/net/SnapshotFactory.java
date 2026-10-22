@@ -424,6 +424,8 @@ public final class SnapshotFactory {
             snapshot.themeName = config.themeName;
             snapshot.seasonEnabled = config.enabled;
             snapshot.durationDays = config.durationDays;
+            snapshot.autoRollover = config.autoRollover;
+            snapshot.cycleMode = config.cycleMode;
 
             // 赛季倒计时：管理员据此决定何时推进 seasonId（与玩家首页同源）。
             snapshot.seasonDaysRemaining = com.haojing.battlepass.server.season.SeasonSchedule.daysUntilEnd(

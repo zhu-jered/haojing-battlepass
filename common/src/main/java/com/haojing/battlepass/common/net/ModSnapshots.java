@@ -286,6 +286,12 @@ public final class ModSnapshots {
         public boolean seasonEnabled = true;
         public int durationDays = 30;
 
+        /** 到期是否由系统自动滚动到下一个赛季（与服务端 season.json 同源）。 */
+        public boolean autoRollover = false;
+
+        /** 赛季周期模式："natural"（自然月，每月 1 号切换）/ "fixed"（固定时长）。 */
+        public String cycleMode = "fixed";
+
         /** 本赛季剩余天数（与玩家首页倒计时同源；-1 = 未配置 seasonStartDate）。 */
         public int seasonDaysRemaining = -1;
 

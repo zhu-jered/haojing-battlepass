@@ -23,7 +23,7 @@ public class SeasonConfig {
     public int schemaVersion = CURRENT_SCHEMA_VERSION;
 
     /** 配置文件里的中文说明（Gson 会序列化出来；客户端忽略）。新赛季轮换的填写指引见 docs/管理员手册.md。 */
-    public String _comment = "镐京战令赛季配置：seasonId 改为新赛季 ID（如 S2）即触发全服结算与重置；seasonStartDate 填赛季开始日期（yyyy-MM-dd）后启用到期提醒，留空则关闭；其它数值项均有默认值与夹紧保护。";
+    public String _comment = "镐京战令赛季配置：cycleMode=natural 表示自然月（每月 1 号切换），fixed 表示固定 durationDays 天；autoRollover=true 时到期自动归档并轮换到下一个赛季（S2、S3 递增），false 时只提醒、由管理员手动改 seasonId；seasonStartDate 填赛季开始日期（yyyy-MM-dd）后启用倒计时与提醒，留空则关闭；其它数值项均有默认值与夹紧保护。";
 
     /** 赛季 ID。用于存档归属判断与赛季归档文件名（data/history/season_&lt;id&gt;.json）。 */
     public String seasonId = "S1";
@@ -34,11 +34,37 @@ public class SeasonConfig {
     /** 赛季总开关。需求文档 §4：赛季开关可由管理员编辑。 */
     public boolean enabled = true;
 
-    /** 赛季时长（天）。需求文档 §4 默认 30 天。 */
+    /** 赛季时长（天）。需求文档 §4 默认 30 天；仅 {@link #cycleMode} 为 {@code "fixed"} 时生效，自然月模式按日历月份计算。 */
     public int durationDays = 30;
 
     /**
-     * 赛季开始日期（yyyy-MM-dd）。留空串 = 不启用"到期提醒/首页倒计时"日程检查。
+     * 赛季周期模式。
+     *
+     * <ul>
+     *   <li>{@code "natural"}：自然月 —— 每月 1 号 0 点切换，赛季长度跟随日历（28/30/31 天），
+     *       开始日所在月份的下月初即到期；</li>
+     *   <li>{@code "fixed"}：固定时长 —— 持续 {@link #durationDays} 天（兼容历史配置与既有行为）。</li>
+     * </ul>
+     *
+     * <p>为什么默认 {@code "fixed"}：2026-10 之前的旧配置没有这个字段，Gson 缺失时落到默认值，
+     * 行为与历史版本完全一致；新部署由内置模板 {@code default_season.json} 带 {@code "natural"} 落地。
+     */
+    public String cycleMode = "fixed";
+
+    /**
+     * 到期后是否由系统自动滚动到下一个赛季（自动归档上赛季、重置等级/任务/分支、全服公告）。
+     *
+     * <p>为什么默认 false：赛季滚动会清空全体玩家的等级/经验/任务/分支/豁免卡/彩蛋进度，
+     * 属于不可逆动作，必须由管理员显式开启；开启后到期日系统才自动执行，未开启时只做倒计时与提醒，
+     * 由管理员手动改 seasonId 触发滚动。
+     *
+     * <p>注意：自动滚动只清档与轮换赛季 ID，<b>不会</b>自动更换任务池、奖励表、主题名 —— 这些内容
+     * 仍需管理员在赛季开始前手动更换配置（见 docs/管理员手册.md §4.1）。
+     */
+    public boolean autoRollover = false;
+
+    /**
+     * 赛季开始日期（yyyy-MM-dd）。留空串 = 不启用"到期提醒/首页倒计时/自动轮换"日程检查。
      *
      * <p>为什么需要它：轮换判据（玩家存档与配置 seasonId 不一致）只负责"滚没滚"，
      * 管理员改 seasonId 之前不知道当前赛季还剩几天。配上开始日期后，

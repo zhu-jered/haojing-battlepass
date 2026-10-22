@@ -138,6 +138,12 @@ public final class ServerTestEnv implements AutoCloseable {
         configs = new ConfigManager(paths, jsonStore);
         configs.load();
 
+        // 测试夹具默认回到历史口径（固定时长、不自动轮换），与 2026-10 之前的行为一致；
+        // 新增的自然月/自动轮换用例在各自体内显式开启，避免模板新默认值污染既有提醒用例。
+        configs.config().cycleMode = com.haojing.battlepass.server.season.SeasonSchedule.CYCLE_FIXED;
+        configs.config().autoRollover = false;
+        configs.config().seasonStartDate = "";
+
         data = new PlayerDataManager(paths, jsonStore, configs.config().seasonId);
         states = new ServerStateManager(paths, jsonStore);
         states.load();

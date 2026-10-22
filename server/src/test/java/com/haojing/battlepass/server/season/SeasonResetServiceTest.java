@@ -4,6 +4,7 @@ import com.haojing.battlepass.common.data.Branch;
 import com.haojing.battlepass.common.data.SeasonData;
 import com.haojing.battlepass.common.data.TaskProgress;
 import com.haojing.battlepass.common.data.TaskStatus;
+import com.haojing.battlepass.server.config.SeasonConfig;
 import com.haojing.battlepass.server.support.ServerTestEnv;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -11,6 +12,9 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -362,5 +366,169 @@ class SeasonResetServiceTest {
             assertEquals("", env.states.state().lastSeasonNoticeDate,
                     "没播报就不该写幂等标记");
         }
+    }
+
+    // ── 2026-10 全模组自查新增：自然月到期自动轮换（checkAndAutoRollover）──
+
+    /** 把配置切到自然月自动轮换口径。 */
+    private static void enableAutoRollover(ServerTestEnv env, String seasonId, String startDate) {
+        SeasonConfig config = env.configs.config();
+        config.autoRollover = true;
+        config.cycleMode = SeasonSchedule.CYCLE_NATURAL;
+        config.seasonId = seasonId;
+        config.seasonStartDate = startDate;
+    }
+
+    @Test
+    void 关闭自动轮换时到期只提醒不滚动(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            UUID id = UUID.randomUUID();
+            freezeClock(env, "2026-12-01");
+            SeasonConfig config = env.configs.config();
+            config.autoRollover = false;
+            config.cycleMode = SeasonSchedule.CYCLE_NATURAL;
+            config.seasonId = "S1";
+            config.seasonStartDate = "2026-11-01";
+
+            assertFalse(env.seasonReset.checkAndAutoRollover(List.of(id)),
+                    "开关关闭时不自动滚动，交给管理员手动推进");
+            assertEquals("S1", config.seasonId);
+            assertEquals("2026-11-01", config.seasonStartDate);
+            assertTrue(env.announcements.isEmpty());
+        }
+    }
+
+    @Test
+    void 自然月到期自动轮换到S2并归档重置且落盘(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            UUID id = UUID.randomUUID();
+            SeasonData season = env.data.season(id);
+            season.level = 12;
+            season.xp = 30;
+            season.setBranch(Branch.HUNT);
+            season.dailyTasks.put("explore", new TaskProgress("t_exp_1"));
+            env.data.global(id).starCoin = 240;
+            env.data.rememberPlayerName(id, "玩家甲");
+
+            freezeClock(env, "2026-12-01");
+            enableAutoRollover(env, "S1", "2026-11-01");
+
+            assertTrue(env.seasonReset.checkAndAutoRollover(List.of(id)),
+                    "到期日且开关开启，应发起自动轮换");
+            assertTrue(env.seasonReset.awaitIdle(8000));
+
+            SeasonConfig config = env.configs.config();
+            assertEquals("S2", config.seasonId, "赛季 ID 应按 S1 → S2 递增");
+            assertEquals("2026-12-01", config.seasonStartDate, "新开始日补回本月 1 号");
+
+            assertEquals(1, season.level, "玩家等级重置");
+            assertTrue(season.dailyTasks.isEmpty(), "旧赛季任务清空");
+            assertEquals(240, env.data.global(id).starCoin, "§4：星币随永久数据保留");
+
+            assertEquals("S2", env.states.state().lastSeasonId);
+            assertEquals("S1", env.states.state().pendingSeasonRolledFrom, "留下待播结算公告");
+            assertTrue(Files.isRegularFile(env.paths.historyFile("S1")), "上赛季应归档");
+
+            // 配置必须落盘：重启重读磁盘后仍是 S2 + 新开始日，避免二次启动被当成旧赛季再清一次档
+            SeasonConfig onDisk = env.jsonStore.read(env.paths.seasonConfigFile(), SeasonConfig.class, SeasonConfig::new);
+            assertEquals("S2", onDisk.seasonId);
+            assertEquals("2026-12-01", onDisk.seasonStartDate);
+
+            assertTrue(env.seasonReset.announcePendingIfAny());
+            assertEquals(List.of("S1->S2"), env.announcements);
+        }
+    }
+
+    @Test
+    void 自动轮换当天重复调用不会二次滚动(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            UUID id = UUID.randomUUID();
+            freezeClock(env, "2026-12-01");
+            enableAutoRollover(env, "S1", "2026-11-01");
+
+            assertTrue(env.seasonReset.checkAndAutoRollover(List.of(id)));
+            assertTrue(env.seasonReset.awaitIdle(8000));
+
+            assertFalse(env.seasonReset.checkAndAutoRollover(List.of(id)),
+                    "新赛季刚开始（剩整月），不应再次轮换");
+            assertEquals("S2", env.configs.config().seasonId);
+            assertEquals(1, env.data.season(id).level, "玩家不会被第二次重置");
+        }
+    }
+
+    @Test
+    void 宕机超期后开机新开始日补回月初而不是宕机当天(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            // 12-03 才开机（12-01 就已到期）：新赛季开始日补回 12-01，当月天数不被截短
+            freezeClock(env, "2026-12-03");
+            enableAutoRollover(env, "S1", "2026-11-01");
+
+            assertTrue(env.seasonReset.checkAndAutoRollover(List.of()));
+            assertTrue(env.seasonReset.awaitIdle(8000));
+
+            SeasonConfig config = env.configs.config();
+            assertEquals("2026-12-01", config.seasonStartDate, "补回 12 月 1 号，而不是 12-03");
+            assertEquals("S2", config.seasonId);
+        }
+    }
+
+    @Test
+    void 非标准赛季ID追加月份后缀避免归档串档(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            freezeClock(env, "2026-12-01");
+            enableAutoRollover(env, "beta", "2026-11-01");
+
+            assertTrue(env.seasonReset.checkAndAutoRollover(List.of()));
+            assertTrue(env.seasonReset.awaitIdle(8000));
+
+            assertEquals("beta-2026-12", env.configs.config().seasonId,
+                    "非 S+数字 的 ID 追加月份后缀，两个赛季不会共用同一归档文件名");
+        }
+    }
+
+    @Test
+    void 自动轮换未配置开始日期时直接跳过(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            freezeClock(env, "2026-12-01");
+            SeasonConfig config = env.configs.config();
+            config.autoRollover = true;
+            config.cycleMode = SeasonSchedule.CYCLE_NATURAL;
+            config.seasonId = "S1";
+            config.seasonStartDate = "";
+
+            assertFalse(env.seasonReset.checkAndAutoRollover(List.of()));
+            assertEquals("S1", config.seasonId, "没配开始日无法判断到期时间，不滚动");
+        }
+    }
+
+    @Test
+    void 固定时长模式自动轮换后新开始日沿旧节奏向后推(@TempDir Path tmp) throws IOException {
+        try (ServerTestEnv env = ServerTestEnv.create(tmp)) {
+            freezeClock(env, "2026-10-31");
+            SeasonConfig config = env.configs.config();
+            config.autoRollover = true;
+            config.cycleMode = SeasonSchedule.CYCLE_FIXED;
+            config.seasonId = "S1";
+            config.seasonStartDate = "2026-10-01";
+            config.durationDays = 30;
+
+            assertTrue(env.seasonReset.checkAndAutoRollover(List.of()));
+            assertTrue(env.seasonReset.awaitIdle(8000));
+
+            assertEquals("S2", config.seasonId);
+            assertEquals("2026-10-31", config.seasonStartDate,
+                    "固定时长不补月初：新开始日 = 旧开始日 + 30 天，保持 30 天一轮的节奏连续");
+        }
+    }
+
+    @Test
+    void 赛季ID递增规则覆盖大小写与边界() {
+        ZonedDateTime dec1 = LocalDate.parse("2026-12-01").atStartOfDay(ZoneId.of("Asia/Shanghai"));
+
+        assertEquals("S2", SeasonResetService.nextSeasonId("S1", dec1));
+        assertEquals("S4", SeasonResetService.nextSeasonId("s3", dec1), "小写 s 同样识别");
+        assertEquals("S11", SeasonResetService.nextSeasonId("S10", dec1), "两位数正常进位");
+        assertEquals("S2", SeasonResetService.nextSeasonId("", dec1), "空 ID 兜底从 S2 起");
+        assertEquals("beta-2026-12", SeasonResetService.nextSeasonId("beta", dec1));
     }
 }

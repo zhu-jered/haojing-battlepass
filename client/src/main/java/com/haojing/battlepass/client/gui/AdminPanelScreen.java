@@ -745,10 +745,23 @@ public class AdminPanelScreen extends Screen {
                 lines.add(Text.translatable("haojing_battlepass.admin.line.season_enabled", admin.seasonEnabled));
                 lines.add(Text.translatable("haojing_battlepass.admin.line.duration", admin.durationDays));
 
+                // 自动轮换状态：让管理员在面板上直接看到"到期是系统自己切还是要手动推进"。
+                String cycleLabel = "natural".equals(admin.cycleMode)
+                        ? "自然月（每月 1 号切换）"
+                        : "固定 " + admin.durationDays + " 天";
+
+                if (admin.autoRollover) {
+                    lines.add(Text.translatable("haojing_battlepass.admin.line.auto_rollover_on", cycleLabel));
+                } else {
+                    lines.add(Text.translatable("haojing_battlepass.admin.line.auto_rollover_off"));
+                }
+
                 // 赛季倒计时：让管理员在面板上直接看到"还剩几天/已到期"，决定何时推进 seasonId。
                 if (admin.seasonDaysRemaining != -1) {
                     if (admin.seasonOverdue) {
-                        lines.add(Text.literal("§c本赛季已到期，请尽快推进 seasonId 开启新赛季"));
+                        lines.add(admin.autoRollover
+                                ? Text.literal("§6本赛季已到期，系统将在下一轮检查时自动开启新赛季")
+                                : Text.literal("§c本赛季已到期，请尽快推进 seasonId 开启新赛季"));
                     } else if (admin.seasonDaysRemaining == 0) {
                         lines.add(Text.literal("§6本赛季今天到期，请尽快推进 seasonId"));
                     } else {

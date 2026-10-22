@@ -1,5 +1,6 @@
 package com.haojing.battlepass.server.config;
 
+import com.haojing.battlepass.server.season.SeasonSchedule;
 import com.haojing.battlepass.server.storage.JsonStore;
 import com.haojing.battlepass.server.storage.StoragePaths;
 import org.junit.jupiter.api.Test;
@@ -53,8 +54,10 @@ class ConfigManagerTest {
         assertEquals("00:00", config.longNight.start);
         assertEquals("06:00", config.longNight.end);
         assertEquals(0.5D, config.longNight.xpMultiplier, 1e-9D);
-        assertEquals("", config.seasonStartDate, "新赛季模板默认不启用日程检查");
+        assertEquals("2026-11-01", config.seasonStartDate, "新赛季模板示例开始日为 2026-11-01");
         assertEquals(3, config.rolloverNoticeDays);
+        assertEquals("natural", config.cycleMode, "新部署模板默认自然月口径");
+        assertTrue(config.autoRollover, "新部署模板默认开启到期自动轮换");
     }
 
     @Test
@@ -66,6 +69,28 @@ class ConfigManagerTest {
         assertTrue(onDisk.contains("赛季配置模板"),
                 "落地文件应带内置模板的中文说明（与 Java 默认值不同，可据此确认来源）");
         assertTrue(onDisk.contains("seasonStartDate"), "模板应写明 seasonStartDate 字段，指导管理员配新赛季");
+        assertTrue(onDisk.contains("cycleMode"), "模板应写明周期模式字段");
+        assertTrue(onDisk.contains("autoRollover"), "模板应写明自动轮换开关字段");
+    }
+
+    @Test
+    void 周期模式非法取值回退固定时长且合法值保留(@TempDir Path tmp) throws IOException {
+        ConfigManager manager = newManager(tmp);
+        manager.load();
+
+        SeasonConfig bad = new SeasonConfig();
+        bad.cycleMode = "every-quarter";
+        new JsonStore().write(paths.seasonConfigFile(), bad);
+
+        SeasonConfig fixed = manager.load();
+        assertEquals(SeasonSchedule.CYCLE_FIXED, fixed.cycleMode, "非法模式名应回退 fixed，避免把自然月边界算错");
+
+        SeasonConfig natural = new SeasonConfig();
+        natural.cycleMode = "NATURAL";
+        new JsonStore().write(paths.seasonConfigFile(), natural);
+
+        assertEquals(SeasonSchedule.CYCLE_NATURAL, manager.load().cycleMode,
+                "合法取值大小写不敏感并规范化为小写");
     }
 
     @Test
