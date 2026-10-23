@@ -5,6 +5,7 @@ import com.haojing.battlepass.common.data.TaskProgress;
 import com.haojing.battlepass.server.config.ConfigManager;
 import com.haojing.battlepass.server.data.PlayerDataManager;
 import com.haojing.battlepass.server.data.ServerStateManager;
+import com.haojing.battlepass.server.season.SeasonResetService;
 import com.haojing.battlepass.server.storage.JsonStore;
 import com.haojing.battlepass.server.storage.StoragePaths;
 import org.junit.jupiter.api.AfterEach;
@@ -130,6 +131,29 @@ class TaskAssignmentServiceTest {
         assertFalse(service.ensureAssigned(id), "任务已齐且业务日一致时不应再抽");
         assertEquals(firstTaskId, season.dailyTasks.get("explore").taskId,
                 "重复调用不能换掉玩家今天的任务（否则进度会凭空作废）");
+    }
+
+    @Test
+    void 重置赛季数据后再补齐会恢复每日每周与赛季挑战(@TempDir Path tmp) throws IOException {
+        setUp(tmp);
+        UUID id = UUID.randomUUID();
+        SeasonData season = data.season(id);
+
+        // 模拟管理员在线「重置自己赛季进度」：resetSeasonData 会清空三类任务与日期戳，
+        // 与 ServerAdminActions.resetSelf 走的是同一份清空实现。
+        SeasonResetService.resetSeasonData(season, "S1");
+        assertTrue(season.dailyTasks.isEmpty(), "重置后每日任务应被清空");
+        assertTrue(season.weeklyTasks.isEmpty(), "重置后每周挑战应被清空");
+        assertTrue(season.seasonalTasks.isEmpty(), "重置后赛季挑战应被清空");
+
+        // 在线重置不会再次触发进服事件，因此补齐必须由重置动作本身显式调用 ensureAssigned 完成；
+        // 这里钉死「清空后再补齐」的语义，防止回退成只补每日、留下空的每周/赛季列表。
+        assertTrue(service.ensureAssigned(id), "清空后应重新补抽任务");
+
+        assertEquals(3, season.dailyTasks.size(), "每日三组各一个");
+        assertEquals(pools.pool().weeklyCount, season.weeklyTasks.size(), "每周按配置数量补齐");
+        assertEquals(pools.pool().allSeasonal().size(), season.seasonalTasks.size(),
+                "赛季挑战按池内全量补齐");
     }
 
     @Test

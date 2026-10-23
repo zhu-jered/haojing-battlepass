@@ -518,6 +518,15 @@ public final class ServerAdminActions {
         String seasonId = config == null ? "S1" : config.seasonId;
 
         SeasonResetService.resetSeasonData(dataManager.season(uuid), seasonId);
+
+        // 清空等级/经验/任务后必须立刻重新分配一套开局任务：ensureAssigned 对刚清空的存档会判定
+        // 每日/每周/赛季全部缺失，依次补抽三组每日、按数量补每周、全量补赛季挑战。
+        // 管理员是在线操作，进服时的 ensureAssigned 兜底不会再次触发；若这里不补，任务列表会一直
+        // 空到下次进服或次日刷新 —— 真机反馈的「每周页空白」正是重置自测后每周任务没人补抽所致。
+        if (taskAssignmentService != null) {
+            taskAssignmentService.ensureAssigned(uuid);
+        }
+
         dataManager.markSeasonDirty(uuid);
 
         if (tracker != null) {
